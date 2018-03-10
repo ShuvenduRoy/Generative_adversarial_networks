@@ -10,6 +10,7 @@ import matplotlib.pyplot as plt
 from torch.utils.data import DataLoader
 from torchvision import datasets, transforms
 from utils import *
+import utils
 
 
 # Generator network
@@ -94,7 +95,7 @@ class GAN(object):
         self.result_dir = 'results'
         self.dataset = 'mnist'
         self.log_dir = 'logs'
-        self.gpu_mode = False
+        self.gpu_mode = True
         self.model_name = 'GAN'
         self.lrG = 0.0004
         self.lrD = 0.0004
@@ -146,12 +147,12 @@ class GAN(object):
             self.y_real_, self.y_fake_ = Variable(torch.ones(self.batch_size, 1)), Variable(
                 torch.zeros(self.batch_size, 1))
 
-        self.D.tarin()
+        # self.D.tarin()
         print('train start!!')
         start_time = time.time()
 
         for epoch in range(self.epoch):
-            self.G.train()
+            # self.G.train()
             epoch_start_time = time.time()
 
             for iter, (x_, _) in enumerate(self.data_loader):
@@ -199,6 +200,66 @@ class GAN(object):
 
             self.train_hist['per_epoch_time'].append(time.time() - epoch_start_time)
             self.visualize_results((epoch + 1))
+
+            self.train_hist['total_time'].append(time.time() - start_time)
+            print("Avg one epoch time: %.2f, total %d epochs time: %.2f" % (np.mean(self.train_hist['per_epoch_time']),
+                                                                            self.epoch,
+                                                                            self.train_hist['total_time'][0]))
+            print("Training finish!... save training results")
+
+            self.save()
+            utils.generate_animation(
+                self.result_dir + '/' + self.dataset + '/' + self.model_name + '/' + self.model_name,
+                self.epoch)
+            utils.loss_plot(self.train_hist, os.path.join(self.save_dir, self.dataset, self.model_name),
+                            self.model_name)
+
+    def visualize_results(self, epoch, fix=True):
+        self.G.eval()
+
+        if not os.path.exists(self.result_dir + '/' + self.dataset + '/' + self.model_name):
+            os.makedirs(self.result_dir + '/' + self.dataset + '/' + self.model_name)
+
+        tot_num_samples = min(self.sample_num, self.batch_size)
+        image_frame_dim = int(np.floor(np.sqrt(tot_num_samples)))
+
+        if fix:
+            """ fixed noise """
+            samples = self.G(self.sample_z_)
+        else:
+            """ random noise """
+            if self.gpu_mode:
+                sample_z_ = Variable(torch.rand((self.batch_size, self.z_dim)).cuda(), volatile=True)
+            else:
+                sample_z_ = Variable(torch.rand((self.batch_size, self.z_dim)), volatile=True)
+
+            samples = self.G(sample_z_)
+
+        if self.gpu_mode:
+            samples = samples.cpu().data.numpy().transpose(0, 2, 3, 1)
+        else:
+            samples = samples.data.numpy().transpose(0, 2, 3, 1)
+
+        utils.save_images(samples[:image_frame_dim * image_frame_dim, :, :, :], [image_frame_dim, image_frame_dim],
+                          self.result_dir + '/' + self.dataset + '/' + self.model_name + '/' + self.model_name + '_epoch%03d' % epoch + '.png')
+
+    def save(self):
+        save_dir = os.path.join(self.save_dir, self.dataset, self.model_name)
+
+        if not os.path.exists(save_dir):
+            os.makedirs(save_dir)
+
+        torch.save(self.G.state_dict(), os.path.join(save_dir, self.model_name + '_G.pkl'))
+        torch.save(self.D.state_dict(), os.path.join(save_dir, self.model_name + '_D.pkl'))
+
+        with open(os.path.join(save_dir, self.model_name + '_history.pkl'), 'wb') as f:
+            pickle.dump(self.train_hist, f)
+
+    def load(self):
+        save_dir = os.path.join(self.save_dir, self.dataset, self.model_name)
+
+        self.G.load_state_dict(torch.load(os.path.join(save_dir, self.model_name + '_G.pkl')))
+        self.D.load_state_dict(torch.load(os.path.join(save_dir, self.model_name + '_D.pkl')))
 
 
 if __name__ == '__main__':
