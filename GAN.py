@@ -181,7 +181,7 @@ class GAN(object):
                 self.train_hist['D_loss'].append(D_loss.data[0])
 
                 D_loss.backward()
-                self.D_optimizer.step
+                self.D_optimizer.step()
 
                 """Update generator network"""
                 self.G_optimizer.zero_grad()
