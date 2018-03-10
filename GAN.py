@@ -25,7 +25,7 @@ class generator(nn.Module):
             nn.Linear(self.input_dim, 1024),
             nn.BatchNorm2d(1024),
             nn.ReLU(),
-            nn.Linear(128 * (self.image_height // 4) * (self.image_width // 4)),
+            nn.Linear(1024, 128 * (self.image_height // 4) * (self.image_width // 4)),
             nn.BatchNorm1d(128 * (self.image_height // 4) * (self.image_width // 4)),
             nn.ReLU()
         )
@@ -49,7 +49,7 @@ class generator(nn.Module):
 
 
 class discriminator(nn.Module):
-    def __init__(self):
+    def __init__(self, dataset='mnist'):
         super(discriminator, self).__init__()
 
         self.image_height = 28
@@ -66,18 +66,18 @@ class discriminator(nn.Module):
         )
 
         self.fc = nn.Sequential(
-            nn.Linear(128*(self.image_width//4)*(self.image_height//4), 1024),
+            nn.Linear(128 * (self.image_width // 4) * (self.image_height // 4), 1024),
             nn.BatchNorm2d(1024),
             nn.LeakyReLU(0.2),
             nn.Linear(1024, self.output_dim),
-            nn.Sigmoid
+            nn.Sigmoid()
         )
 
         initialize_weights(self)
 
     def forward(self, input):
         x = self.conv(input)
-        x = x.view(-1, 128*(self.image_height//4)*(self.image_width//4))
+        x = x.view(-1, 128 * (self.image_height // 4) * (self.image_width // 4))
         x = self.fc(x)
 
         return x
@@ -86,6 +86,121 @@ class discriminator(nn.Module):
 class GAN(object):
 
     def __init__(self):
+        self.train_hist = {}
         self.epoch = 25
         self.sample_num = 16
         self.batch_size = 64
+        self.save_dir = 'models'
+        self.result_dir = 'results'
+        self.dataset = 'mnist'
+        self.log_dir = 'logs'
+        self.gpu_mode = False
+        self.model_name = 'GAN'
+        self.lrG = 0.0004
+        self.lrD = 0.0004
+        self.beta1 = 0.5
+        self.beta2 = 0.999
+
+        self.G = generator(self.dataset)
+        self.D = discriminator(self.dataset)
+        self.G_optimizer = optim.Adam(self.G.parameters(), lr=self.lrG, betas=(self.beta1, self.beta2))
+        self.D_optimizer = optim.Adam(self.D.parameters(), lr=self.lrD, betas=(self.beta1, self.beta2))
+        self.z_dim = 62
+
+        # Defining the loss functions
+        if self.gpu_mode:
+            self.G.cuda()
+            self.D.cuda()
+            self.BCE_loss = nn.BCELoss().cuda()
+        else:
+            self.BCE_loss = nn.BCELoss()
+
+        print('---------- Networks architecture -------------')
+        print_network(self.G)
+        print_network(self.D)
+        print('-----------------------------------------------')
+
+        if self.dataset == 'mnist':
+            self.data_loader = DataLoader(datasets.MNIST('data/mnist', train=True, download=True,
+                                                         transform=transforms.Compose(
+                                                             [transforms.ToTensor()])),
+                                          batch_size=self.batch_size, shuffle=True)
+
+        # Define fixed noise to test
+        if self.gpu_mode:
+            self.sample_z_ = Variable(torch.rand((self.batch_size, self.z_dim)).cuda(), volatile=True)  # (-1, 62)
+        else:
+            self.sample_z_ = Variable(torch.rand((self.batch_size, self.z_dim)), volatile=True)
+
+    # Function for training the model
+    def train(self):
+        self.train_hist['D_loss'] = []
+        self.train_hist['G_loss'] = []
+        self.train_hist["per_epoch_time"] = []
+        self.train_hist['total_time'] = []
+
+        if self.gpu_mode:
+            self.y_real_, self.y_fake_ = Variable(torch.ones(self.batch_size, 1).cuda()), Variable(
+                torch.zeros(self.batch_size, 1).cuda())
+        else:
+            self.y_real_, self.y_fake_ = Variable(torch.ones(self.batch_size, 1)), Variable(
+                torch.zeros(self.batch_size, 1))
+
+        self.D.tarin()
+        print('train start!!')
+        start_time = time.time()
+
+        for epoch in range(self.epoch):
+            self.G.train()
+            epoch_start_time = time.time()
+
+            for iter, (x_, _) in enumerate(self.data_loader):
+                if iter == self.data_loader.dataset.__len__() // self.batch_size:
+                    break
+
+                z_ = torch.rand((self.batch_size, self.z_dim))
+
+                if self.gpu_mode:
+                    x_, z_ = Variable(x_.cuda()), Variable(z_.cuda())
+                else:
+                    x_, z_ = Variable(x_), Variable(z_)
+
+                """Update D network"""
+                self.D_optimizer.zero_grad()
+
+                # train with real images
+                y_hat_real = self.D(x_)  # forward pass
+                D_real_loss = self.BCE_loss(y_hat_real, self.y_real_)
+
+                generated_images_ = self.G(z_)
+                y_hat_fake = self.D(generated_images_)
+                D_fake_loss = self.BCE_loss(y_hat_fake, self.y_fake_)
+
+                D_loss = D_fake_loss + D_real_loss
+                self.train_hist['D_loss'].append(D_loss.data[0])
+
+                D_loss.backward()
+                self.D_optimizer.step
+
+                """Update generator network"""
+                self.G_optimizer.zero_grad()
+
+                generated_images_ = self.G(z_)
+                y_hat_fake = self.D(generated_images_)
+                G_loss = self.BCE_loss(y_hat_fake, self.y_real_)
+                self.train_hist['G_loss'].append(G_loss.data[0])
+
+                G_loss.backward()
+                self.G_optimizer.step()
+                if ((iter + 1) % 100) == 0:
+                    print("Epoch: [%2d] [%4d/%4d] D_loss: %.8f, G_loss: %.8f" %
+                          ((epoch + 1), (iter + 1), self.data_loader.dataset.__len__() // self.batch_size,
+                           D_loss.data[0], G_loss.data[0]))
+
+            self.train_hist['per_epoch_time'].append(time.time() - epoch_start_time)
+            self.visualize_results((epoch + 1))
+
+
+if __name__ == '__main__':
+    g = GAN()
+    g.train()
