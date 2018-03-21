@@ -71,7 +71,7 @@ class DCGAN():
         model.summary()
 
         noise = Input(shape=noise_shape)  # input to model
-        img = model(noise)                # output of the model
+        img = model(noise)  # output of the model
 
         return Model(noise, img)
 
@@ -108,3 +108,68 @@ class DCGAN():
         validity = model(img)
 
         return Model(img, validity)
+
+    def train(self, epochs, batch_size=128, save_interval=50):
+        # load data
+        (X_train, _), (_, _) = mnist.load_data()
+
+        X_train = (X_train.astype(np.float32) - 127.5) / 127.5
+        X_train = np.expand_dims(X_train, axis=3)
+
+        half_batch = int(batch_size / 2)
+
+        for epoch in range(epochs):
+
+            # --------------------
+            # train Discriminator
+            # --------------------
+
+            # select a random half batch of images
+            idx = np.random.randint(0, X_train.shape[0], half_batch)
+            imgs = X_train[idx]
+
+            # sample noise and generate other half of the train data
+            noise = np.random.normal(0, 1, (half_batch, 100))
+            gen_imgs = self.generator.predict(noise)  # generated image
+
+            # train the discriminator (real classified as ones and generated as zeros)
+            d_loss_real = self.discriminator.train_on_batch(imgs, np.ones((half_batch, 1)))
+            d_loss_fake = self.discriminator.train_on_batch(gen_imgs, np.zeros((half_batch, 1)))
+            d_loss = 0.5 * np.add(d_loss_real, d_loss_fake)
+
+            # -------------------
+            # train Generator
+            # -------------------
+            noise = np.random.normal(0, 1, (batch_size, 100))
+            g_loss = self.combined.train_on_batch(noise, np.ones((batch_size, 1)))
+
+            # plot the progress
+            print("%d [D loss: %f, acc.:%2f%%] [G los: %f]" % (epoch, d_loss[0], 100 * d_loss[1], g_loss))
+
+            # If at save interval => save generated image samples
+            if epoch % save_interval == 0:
+                self.save_imgs(epoch)
+
+    def save_imgs(self, epoch):
+        r, c = 5, 5
+        noise = np.random.normal(0, 1, (r * c, 100))
+        gen_imgs = self.generator.predict(noise)
+
+        # Rescale images 0 - 1
+        gen_imgs = 0.5 * gen_imgs + 0.5
+
+        fig, axs = plt.subplots(r, c)
+        # fig.suptitle("DCGAN: Generated digits", fontsize=12)
+        cnt = 0
+        for i in range(r):
+            for j in range(c):
+                axs[i, j].imshow(gen_imgs[cnt, :, :, 0], cmap='gray')
+                axs[i, j].axis('off')
+                cnt += 1
+        fig.savefig("dcgan/images/mnist_%d.png" % epoch)
+        plt.close()
+
+
+if __name__ == '__main__':
+    dcgan = DCGAN()
+    dcgan.train(epochs=4000, batch_size=32, save_interval=50)
