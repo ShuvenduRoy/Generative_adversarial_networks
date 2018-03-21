@@ -2,3 +2,6 @@
 Implementation of few of the GAN architectures 
 
 ![](images/GAN_structure.png)
+
+# Table of content
+-[Deep convolutional GAN](dcgan)
