@@ -5,3 +5,9 @@ Implementation of few of the GAN architectures
 
 # Table of content
 - [Deep convolutional GAN](dcgan)
+
+![](image/dcgan.png)
+
+- [Conditional GAN](cgan)
+
+![](image/cgan.png)
