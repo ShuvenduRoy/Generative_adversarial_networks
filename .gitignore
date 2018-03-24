@@ -27,6 +27,7 @@ wheels/
 *.egg
 MANIFEST
 images/
+saved_model/
 
 # PyInstaller
 #  Usually these files are written by a python script from a template
