@@ -11,3 +11,6 @@ Implementation of few of the GAN architectures
 - [Conditional GAN](cgan)
 
 ![](image/cgan.png)
+
+- [Info GAN](infogan)
+- [Wasserstein GAN](wgan)
