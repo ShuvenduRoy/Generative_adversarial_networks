@@ -12,7 +12,7 @@ class DataLoader():
 
     def load_data(self, batch_size=1, is_testing=False):
         data_type = "train" if not is_testing else "test"
-        path = glob('E:\\Datasets\\maps\\'+data_type+'\\*')
+        path = glob('E:\\Datasets\\'+self.dataset_name+'\\'+data_type+'\\*')
 
         batch_images = np.random.choice(path, size=batch_size)
 
