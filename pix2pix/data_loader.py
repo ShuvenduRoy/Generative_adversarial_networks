@@ -42,4 +42,4 @@ class DataLoader():
         return imgs_A, imgs_B
 
     def imread(self, path):
-        return skimage.io.imread(path, mode='RGB').astype(np.float)
+        return scipy.misc.imread(path, mode='RGB').astype(np.float)
