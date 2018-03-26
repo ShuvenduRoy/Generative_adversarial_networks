@@ -185,7 +185,7 @@ class Pix2Pix():
                 self.save_imgs(epoch)
 
     def save_imgs(self, epoch):
-        os.makedirs('images/%s' % self.dataset_name, exist_ok=True)
+        os.makedirs('pix2pix/images/%s' % self.dataset_name, exist_ok=True)
         r, c = 3, 3
 
         imgs_A, imgs_B = self.data_loader.load_data(batch_size=3, is_testing=True)
@@ -205,7 +205,7 @@ class Pix2Pix():
                 axs[i, j].set_title(titles[i])
                 axs[i, j].axis('off')
                 cnt += 1
-        fig.savefig("images/%s/%d.png" % (self.dataset_name, epoch))
+        fig.savefig("pix2pix/images/%s/%d.png" % (self.dataset_name, epoch))
         plt.close()
 
 
