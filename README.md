@@ -18,3 +18,7 @@ Implementation of few of the GAN architectures
 - [Pix2Pix](pix2pix)
 
 ![](image/pix2pix.png)
+
+- [Cycle GAN](cycle_gan)
+
+![](image/cycle_gan.png)
