@@ -17,74 +17,69 @@ import os
 
 
 class CycleGAN():
-    """Implementation of Cycle GAN"""
-
     def __init__(self):
+        # Input shape
         self.img_rows = 128
         self.img_cols = 128
         self.channels = 3
         self.img_shape = (self.img_rows, self.img_cols, self.channels)
 
-        # configure data loader
+        # Configure data loader
         self.dataset_name = 'apple2orange'
-        self.data_loader = DataLoader(dataset_name=self.dataset_name, img_res=(self.img_rows, self.img_cols))
+        self.data_loader = DataLoader(dataset_name=self.dataset_name,
+                                      img_res=(self.img_rows, self.img_cols))
 
-        # calculate output shape of D (patch gan)
+        # Calculate output shape of D (PatchGAN)
         patch = int(self.img_rows / 2 ** 4)
         self.disc_patch = (patch, patch, 1)
 
-        # number of filters in first layer
+        # Number of filters in the first layer of G and D
         self.gf = 32
         self.df = 64
 
-        # loss weights
-        self.lambda_cycle = 10.0  # cycle consistency loss
-        self.lambda_id = 0.0  # identity loss
+        # Loss weights
+        self.lambda_cycle = 10.0  # Cycle-consistency loss
+        self.lambda_id = 0.0  # Identity loss
 
         optimizer = Adam(0.0002, 0.5)
 
-        # Build and compile the discriminator
+        # Build and compile the discriminators
         self.d_A = self.build_discriminator()
         self.d_B = self.build_discriminator()
-        self.d_A.compile(loss='binary_crossentropy',
+        self.d_A.compile(loss='mse',
+                         optimizer=optimizer,
+                         metrics=['accuracy'])
+        self.d_B.compile(loss='mse',
                          optimizer=optimizer,
                          metrics=['accuracy'])
 
-        self.d_B.compile(loss='binary_crossentropy',
-                         optimizer=optimizer,
-                         metrics=['accuracy'])
-
-        # Build and compile the generator
+        # Build and compile the generators
         self.g_AB = self.build_generator()
         self.g_BA = self.build_generator()
-
         self.g_AB.compile(loss='binary_crossentropy', optimizer=optimizer)
         self.g_BA.compile(loss='binary_crossentropy', optimizer=optimizer)
 
-        # input images from both domains
+        # Input images from both domains
         img_A = Input(shape=self.img_shape)
         img_B = Input(shape=self.img_shape)
 
-        # translate the image in other domain
+        # Translate images to the other domain
         fake_B = self.g_AB(img_A)
         fake_A = self.g_BA(img_B)
-
-        # translate the image back in original domain
+        # Translate images back to original domain
         reconstr_A = self.g_BA(fake_B)
         reconstr_B = self.g_AB(fake_A)
 
-        # for the combined model, we don't train the discriminator
+        # For the combined model we will only train the generators
         self.d_A.trainable = False
         self.d_B.trainable = False
 
-        # valid takes generated image and decide validity
+        # Discriminators determines validity of translated images
         valid_A = self.d_A(fake_A)
         valid_B = self.d_B(fake_B)
 
-        # combined model (stacked generator and discriminator) takes
-        # noise as input => generated images => determines validity
-        self.combined = Model([img_A, img_B], [valid_A, valid_B, fake_B, fake_A, reconstr_A, reconstr_B])
-
+        self.combined = Model([img_A, img_B], [valid_A, valid_B, fake_B, fake_A, \
+                                               reconstr_A, reconstr_B])
         self.combined.compile(loss=['mse', 'mse', 'mae', 'mae', 'mae', 'mae'],
                               loss_weights=[1, 1, self.lambda_id, self.lambda_id, \
                                             self.lambda_cycle, self.lambda_cycle],
@@ -207,15 +202,11 @@ class CycleGAN():
                 self.save_imgs(epoch)
 
     def save_imgs(self, epoch):
-        os.makedirs('cycle_gan/images/%s' % self.dataset_name, exist_ok=True)
+        os.makedirs('images/%s' % self.dataset_name, exist_ok=True)
         r, c = 2, 3
 
         imgs_A = self.data_loader.load_data(domain="A", batch_size=1, is_testing=True)
         imgs_B = self.data_loader.load_data(domain="B", batch_size=1, is_testing=True)
-
-        # Demo (for GIF)
-        # imgs_A = self.data_loader.load_img('datasets/apple2orange/testA/n07740461_1541.jpg')
-        # imgs_B = self.data_loader.load_img('datasets/apple2orange/testB/n07749192_4241.jpg')
 
         # Translate images to the other domain
         fake_B = self.g_AB.predict(imgs_A)
@@ -238,7 +229,7 @@ class CycleGAN():
                 axs[i, j].set_title(titles[j])
                 axs[i, j].axis('off')
                 cnt += 1
-        fig.savefig("cycle_gan/images/%s/%d.png" % (self.dataset_name, epoch))
+        fig.savefig("images/%s/%d.png" % (self.dataset_name, epoch))
         plt.close()
 
 
