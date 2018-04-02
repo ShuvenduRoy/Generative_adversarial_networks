@@ -1,26 +1,18 @@
 import keras
-from keras.datasets import mnist
-import keras.models as models
 import keras.layers as layers
-import keras.losses as losses
 import keras.metrics as metrices
-from keras.layers import Input, Dense, Reshape, Flatten, Dropout, multiply, GaussianNoise
-from keras.layers import BatchNormalization, Activation, Embedding, ZeroPadding2D
-from keras.layers import MaxPooling2D
+import keras.models as models
+import matplotlib.pyplot as plt
+import numpy as np
+from keras import losses
+from keras.layers import Embedding
+from keras.layers import Input, Dense, Flatten, Dropout, multiply
 from keras.layers.advanced_activations import LeakyReLU
 from keras.layers.convolutional import UpSampling2D, Conv2D
-from keras.models import Sequential, Model
-from keras.optimizers import Adam
-from keras import losses
-from keras.utils import to_categorical
-import keras.backend as K
+from keras.models import Model
 from keras_contrib.layers import InstanceNormalization
 
 from data_loader import UTKFace_data
-
-import matplotlib.pyplot as plt
-
-import numpy as np
 
 
 class AAE:
@@ -30,7 +22,7 @@ class AAE:
         self.channels = h
         self.img_shape = (self.rows, self.cols, self.channels)
         self.encoded_dim = e_dim
-        self.num_classes = 10
+        self.num_classes = 25
         self.dataset = dataset
 
         self.gf = 32
@@ -53,14 +45,15 @@ class AAE:
         self.decoder.compile(loss=['mse'], optimizer=optimizer)
 
         img = Input(shape=self.img_shape)
+        label = Input(shape=(1,))
         encoded = self.encoder(img)
-        decoded = self.decoder(encoded)
+        decoded = self.decoder([encoded, label])
 
         self.discriminator.trainable = False
 
         validity = self.discriminator(encoded)
 
-        self.adversarial_autoencoder = Model(img, [decoded, validity])
+        self.adversarial_autoencoder = Model([img, label], [decoded, validity])
         self.adversarial_autoencoder.compile(loss=['mse', 'binary_crossentropy'],
                                              loss_weights=[0.999, 0.001],
                                              optimizer=optimizer)
@@ -120,11 +113,13 @@ class AAE:
 
     def build_decoder(self):
         noise = Input(shape=(self.encoded_dim,))
-        # label = Input(shape=(1,), dtype='int32')
+        label = Input(shape=(1,), dtype='int32')
 
-        # label_embedding = Flatten()(Embedding(self.num_classes, self.encoded_dim)(label))
+        label_embedding = Flatten()(Embedding(self.num_classes, self.encoded_dim)(label))
 
-        # model_input = multiply([noise, label_embedding])
+        model_input = multiply([noise, label_embedding])
+
+        # output_img = model(model_input)
 
         def conv2d(layer_input, filters, f_size=4):
             """Layers used during downsampling"""
@@ -143,7 +138,7 @@ class AAE:
             return u
 
         # Upsampling
-        model_input = layers.Dense(8 * 8 * 256)(noise) # model_input
+        model_input = layers.Dense(8 * 8 * 256)(model_input)
         model_input = layers.Reshape((8, 8, 256))(model_input)
         u1 = deconv2d(model_input, self.gf * 4)
         u2 = deconv2d(u1, self.gf * 2)
@@ -151,10 +146,9 @@ class AAE:
 
         u4 = UpSampling2D(size=2)(u3)
         output_img = Conv2D(self.channels, kernel_size=4, strides=1, padding='same', activation='tanh')(u4)
-        # Model([noise, label], output_img).summary()
+        Model([noise, label], output_img).summary()
 
-        # return Model([noise, label], output_img)
-        return Model(noise, output_img)
+        return Model([noise, label], output_img)
 
     def train(self, epochs, batch_size=128, save_interval=100):
         # laod data
@@ -172,6 +166,7 @@ class AAE:
             # Train discriminator
             idx = np.random.randint(0, X_train.shape[0], half_batch)
             images = X_train[idx]
+            labels = y_train[idx]
 
             # encode this images
             encoded_images = self.encoder.predict(images)  # latent fake
@@ -192,7 +187,7 @@ class AAE:
 
             valid_y = np.ones((half_batch, 1))
 
-            g_loss = self.adversarial_autoencoder.train_on_batch(images, [images, valid_y])
+            g_loss = self.adversarial_autoencoder.train_on_batch([images, labels], [images, valid_y])
 
             # Plot the progress
             print("%d [D loss: %f, acc: %.2f%%] [G loss: %f, mse: %f]" % (
@@ -203,13 +198,14 @@ class AAE:
                 # Select a random half batch of images
                 idx = np.random.randint(0, X_train.shape[0], 25)
                 imgs = X_train[idx]
-                self.save_imgs(epoch, imgs)
+                labels = y_train[idx]
+                self.save_imgs(epoch, imgs, labels)
 
-    def save_imgs(self, epoch, imgs):
+    def save_imgs(self, epoch, imgs, labels):
         r, c = 5, 5
 
         encoded_imgs = self.encoder.predict(imgs)
-        gen_imgs = self.decoder.predict(encoded_imgs)
+        gen_imgs = self.decoder.predict([encoded_imgs, labels])
 
         gen_imgs = 0.5 * gen_imgs + 0.5
 
@@ -226,5 +222,5 @@ class AAE:
 
 
 if __name__ == '__main__':
-    aae = AAE(128, 128, 3, 1000, "UTKFace")
+    aae = AAE(128, 128, 3, 1000, "UTKFace_conditioned")
     aae.train(epochs=20000, batch_size=32, save_interval=200)
