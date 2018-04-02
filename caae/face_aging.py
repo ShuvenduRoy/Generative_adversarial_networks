@@ -233,8 +233,8 @@ class AAE:
         image = np.empty(shape=(c, self.rows, self.cols, self.channels))
         for i in range(c):
             image[i] = imgs[0]
-        labels = np.array([2, 4, 7, 10, 14, 21]).reshape(c, 1)  # 10, 20, 35, 50, 70, 100
-        ages = [10, 20, 35, 50, 70, 100]
+        labels = np.array([0, 4, 8, 12, 16, 20]).reshape(c, 1)  # 5, 20, 40, 60, 80, 100
+        ages = [5, 20, 40, 60, 80, 100]
 
         encoded_imgs = self.encoder.predict(image)
         gen_imgs = self.decoder.predict([encoded_imgs, labels])
