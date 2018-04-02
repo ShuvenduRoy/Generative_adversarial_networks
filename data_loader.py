@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 import cv2
 
 
-def UTKFace_data(size=(128, 218)):
+def UTKFace_data(size=(128, 128)):
     print("load data started")
     all_images = glob.glob("E:\\Datasets\\UTKFace\\*")
 
