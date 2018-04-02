@@ -233,13 +233,14 @@ class AAE:
         image = np.empty(shape=(c, self.rows, self.cols, self.channels))
         for i in range(c):
             image[i] = imgs[0]
-        labels = np.array([0, 4, 8, 12, 16, 20]).reshape(c, 1)  # 5, 20, 40, 60, 80, 100
+        labels = np.array([0, 4, 8, 12, 16, 19]).reshape(c, 1)  # 5, 20, 40, 60, 80, 100
         ages = [5, 20, 40, 60, 80, 100]
 
         encoded_imgs = self.encoder.predict(image)
         gen_imgs = self.decoder.predict([encoded_imgs, labels])
 
         gen_imgs = 0.5 * gen_imgs + 0.5
+        image = 0.5 * image + 0.5
 
         fig, axs = plt.subplots(r, c)
 
@@ -258,5 +259,5 @@ class AAE:
 
 
 if __name__ == '__main__':
-    aae = AAE(128, 128, 3, 1000, "face_aging")
-    aae.train(epochs=20000, batch_size=32, save_interval=200)
+    aae = AAE(128, 128, 3, 100, "face_aging")
+    aae.train(epochs=40000, batch_size=32, save_interval=400)
