@@ -11,8 +11,16 @@ from keras.layers.advanced_activations import LeakyReLU
 from keras.layers.convolutional import UpSampling2D, Conv2D
 from keras.models import Model
 from keras_contrib.layers import InstanceNormalization
-
+from keras_vggface import VGGFace
+import keras.backend as K
 from data_loader import UTKFace_data
+
+fnet = VGGFace(include_top=False, input_shape=(128, 128, 3))
+fnet.trainable = False
+
+
+def face_recognition_loss(img, pred):
+    return K.mean(K.sum(K.abs(fnet(img) - fnet(pred)), axis=1))
 
 
 class AAE:
@@ -42,7 +50,7 @@ class AAE:
 
         # decoder
         self.decoder = self.build_decoder()
-        self.decoder.compile(loss=['mse'], optimizer=optimizer)
+        self.decoder.compile(loss=[face_recognition_loss], optimizer=optimizer)
 
         img = Input(shape=self.img_shape)
         label = Input(shape=(1,))
@@ -191,7 +199,7 @@ class AAE:
 
             # Plot the progress
             print("%d [D loss: %f, acc: %.2f%%] [G loss: %f, mse: %f]" % (
-            epoch, d_loss[0], 100 * d_loss[1], g_loss[0], g_loss[1]))
+                epoch, d_loss[0], 100 * d_loss[1], g_loss[0], g_loss[1]))
 
             # If at save interval => save generated image samples
             if epoch % save_interval == 0:
@@ -220,7 +228,35 @@ class AAE:
 
         plt.close()
 
+        # plt the aging effect
+        r, c = 2, 6
+        image = np.empty(shape=(c, self.rows, self.cols, self.channels))
+        for i in range(c):
+            image[i] = imgs[0]
+        labels = np.array([2, 4, 7, 10, 14, 21]).reshape(c, 1)  # 10, 20, 35, 50, 70, 100
+        ages = [10, 20, 35, 50, 70, 100]
+
+        encoded_imgs = self.encoder.predict(image)
+        gen_imgs = self.decoder.predict([encoded_imgs, labels])
+
+        gen_imgs = 0.5 * gen_imgs + 0.5
+
+        fig, axs = plt.subplots(r, c)
+
+        for i in range(c):
+            axs[0, i].imshow(image[i, :, :, :])
+            axs[0, i].axis('off')
+
+        for i in range(c):
+            axs[1, i].imshow(gen_imgs[i, :, :, :])
+            axs[1, i].set_title(str(ages[i]))
+            axs[1, i].axis('off')
+
+        fig.savefig("caae/images/" + self.dataset + "/%d_aged.png" % epoch)
+
+        plt.close()
+
 
 if __name__ == '__main__':
-    aae = AAE(128, 128, 3, 1000, "UTKFace_conditioned")
+    aae = AAE(128, 128, 3, 1000, "face_aging")
     aae.train(epochs=20000, batch_size=32, save_interval=200)
