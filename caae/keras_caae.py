@@ -15,20 +15,21 @@ from keras.optimizers import Adam
 from keras import losses
 from keras.utils import to_categorical
 import keras.backend as K
-from utils import UTKFace_data
+from data_loader import UTKFace_data
 import matplotlib.pyplot as plt
 
 import numpy as np
 
 
 class CAAE:
-    def __init__(self):
-        self.rows = 28
-        self.cols = 28
-        self.channel = 1
+    def __init__(self, r, c, h, e_dim, dataset="mnist"):
+        self.rows = r
+        self.cols = c
+        self.channel = h
         self.img_shape = (self.rows, self.cols, self.channel)
-        self.encoded_dim = 100
+        self.encoded_dim = e_dim
         self.num_classes = 10
+        self.dataset = dataset
 
         # optimizer
         optimizer = keras.optimizers.Adam(0.0002, 0.5)
@@ -146,14 +147,15 @@ class CAAE:
 
     def train(self, epochs, batch_size=128, save_interval=100):
         # laod data
-        (X_train, y_train)= UTKFace_data()
+        (X_train, y_train) = UTKFace_data()
 
         # rescale
         X_train = (X_train.astype(np.float32) - 127.5) / 127.5
-        X_train = np.expand_dims(X_train, axis=3)
+        if self.dataset == 'mnist':
+            X_train = np.expand_dims(X_train, axis=3)
         y_train = y_train.reshape(-1, 1)
 
-        half_batch = int(batch_size)/2
+        half_batch = int(batch_size) // 2
 
         for epoch in range(epochs):
             # Train discriminator
@@ -183,7 +185,7 @@ class CAAE:
 
             # Plot the progress
             print("%d [D loss: %f, acc: %.2f%%] [G loss: %f, mse: %f]" % (
-            epoch, d_loss[0], 100 * d_loss[1], g_loss[0], g_loss[1]))
+                epoch, d_loss[0], 100 * d_loss[1], g_loss[0], g_loss[1]))
 
             # If at save interval => save generated image samples
             if epoch % save_interval == 0:
@@ -209,10 +211,10 @@ class CAAE:
                 axs[i, j].set_title("Digit: %d" % labels[cnt])
                 axs[i, j].axis('off')
                 cnt += 1
-        fig.savefig("caae/images/UTKFace/%d.png" % epoch)
+        fig.savefig("caae/images/" + self.dataset + "/%d.png" % epoch)
         plt.close()
 
 
 if __name__ == '__main__':
-    aae = CAAE()
+    aae = CAAE(128, 128, 3, 1000, "UTKFace")
     aae.train(epochs=20000, batch_size=32, save_interval=200)

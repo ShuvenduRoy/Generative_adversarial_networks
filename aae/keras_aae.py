@@ -14,6 +14,7 @@ from keras.optimizers import Adam
 from keras import losses
 from keras.utils import to_categorical
 import keras.backend as K
+from data_loader import UTKFace_data
 
 import matplotlib.pyplot as plt
 
@@ -21,12 +22,14 @@ import numpy as np
 
 
 class AAE:
-    def __init__(self):
-        self.rows = 28
-        self.cols = 28
-        self.channel = 1
+    def __init__(self, r, c, h, e_dim, dataset="mnist"):
+        self.rows = r
+        self.cols = c
+        self.channel = h
         self.img_shape = (self.rows, self.cols, self.channel)
-        self.encoded_dim = 100
+        self.encoded_dim = e_dim
+        self.num_classes = 10
+        self.dataset = dataset
 
         # optimizer
         optimizer = keras.optimizers.Adam(0.0002, 0.5)
@@ -117,13 +120,15 @@ class AAE:
 
     def train(self, epochs, batch_size=128, save_interval=100):
         # laod data
-        (X_train, _), (_, _) = mnist.load_data()
+        (X_train, y_train) = UTKFace_data()
 
         # rescale
         X_train = (X_train.astype(np.float32) - 127.5) / 127.5
-        X_train = np.expand_dims(X_train, axis=3)
+        if self.dataset == 'mnist':
+            X_train = np.expand_dims(X_train, axis=3)
+        y_train = y_train.reshape(-1, 1)
 
-        half_batch = int(batch_size)/2
+        half_batch = int(batch_size) // 2
 
         for epoch in range(epochs):
             # Train discriminator
@@ -177,10 +182,11 @@ class AAE:
                 axs[i, j].imshow(gen_imgs[cnt, :, :, 0], cmap='gray')
                 axs[i, j].axis('off')
                 cnt += 1
-        fig.savefig("aae/images/mnist_%d.png" % epoch)
+        fig.savefig("aae/images/" + self.dataset + "/%d.png" % epoch)
+
         plt.close()
 
 
 if __name__ == '__main__':
-    aae = AAE()
+    aae = AAE(128, 128, 3, 1000, "UTKFace")
     aae.train(epochs=20000, batch_size=32, save_interval=200)
