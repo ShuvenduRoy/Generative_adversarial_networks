@@ -33,7 +33,7 @@ class CAAE:
         self.channels = 3
         self.img_shape = (self.rows, self.cols, self.channels)
         self.encoded_dim = 1000
-        self.num_classes = 10
+        self.num_classes = 25
 
         self.gf = 32
         self.df = 64
@@ -275,14 +275,14 @@ class CAAE:
                 axs[i, j].set_title("{0} - {1}".format(labels[cnt] * 5, (labels[cnt] + 1) * 5))
                 axs[i, j].axis('off')
                 cnt += 1
-        fig.savefig("images/%d.png" % epoch)
+        fig.savefig("caae/images/UTKFace/%d.png" % epoch)
         plt.close()
 
     def save_model(self):
 
         def save(model, model_name):
-            model_path = "aae/saved_model/%s.json" % model_name
-            weights_path = "aae/saved_model/%s_weights.hdf5" % model_name
+            model_path = "caae/saved_model/%s.json" % model_name
+            weights_path = "caae/saved_model/%s_weights.hdf5" % model_name
             options = {"file_arch": model_path,
                        "file_weight": weights_path}
             json_string = model.to_json()
