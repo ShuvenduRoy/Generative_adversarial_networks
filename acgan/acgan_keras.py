@@ -126,7 +126,7 @@ class ACGAN():
             (X_train, y_train), (_, _) = mnist.load_data()
             X_train = np.expand_dims(X_train, axis=3)
         else:
-            X_train, y_train = UTKFace_data()
+            X_train, y_train = UTKFace_data(size=(self.img_rows, self.img_cols))
 
         X_train = (X_train.astype(np.float32) - 127.5) / 127.5
         y_train = y_train.reshape(-1, 1)
@@ -197,9 +197,9 @@ class ACGAN():
                 self.save_imgs(epoch)
 
     def save_imgs(self, epoch):
-        r, c = 2, 5
+        r, c = self.num_classes//5, 5
         noise = np.random.normal(0, 1, (r * c, 100))
-        sampled_labels = np.arange(0, 10).reshape(-1, 1)
+        sampled_labels = np.arange(0, r*c).reshape(-1, 1)
 
         gen_imgs = self.generator.predict([noise, sampled_labels])
 
@@ -211,11 +211,11 @@ class ACGAN():
         cnt = 0
         for i in range(r):
             for j in range(c):
-                axs[i, j].imshow(gen_imgs[cnt, :, :, 0], cmap='gray')
-                axs[i, j].set_title("Digit: %d" % sampled_labels[cnt])
+                axs[i, j].imshow(gen_imgs[cnt, :, :, :])
+                axs[i, j].set_title("Class: %d" % sampled_labels[cnt])
                 axs[i, j].axis('off')
                 cnt += 1
-        fig.savefig("acgan/images/"+self.dataset+"/mnist_%d.png" % epoch)
+        fig.savefig("acgan/images/"+self.dataset+"/output_%d.png" % epoch)
         plt.close()
 
     def save_model(self):
@@ -235,5 +235,5 @@ class ACGAN():
 
 
 if __name__ == '__main__':
-    dcgan = ACGAN(28, 28, 1, 10, 'mnist')
+    dcgan = ACGAN(28, 28, 3, 20, 'UFTKace')
     dcgan.train(epochs=6000, batch_size=32, save_interval=100)
