@@ -244,5 +244,5 @@ class ACGAN():
 
 
 if __name__ == '__main__':
-    dcgan = ACGAN(32, 32, 3, 20, 'cifer')
+    dcgan = ACGAN(32, 32, 3, 10, 'cifer')
     dcgan.train(epochs=6000, batch_size=32, save_interval=100)
