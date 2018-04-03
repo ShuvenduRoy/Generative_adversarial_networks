@@ -30,7 +30,7 @@ class ACGAN():
 
         # Build and compile the discriminator
         self.discriminator = self.build_discriminator()
-        self.discriminator.compile(loss='binary_crossentropy',
+        self.discriminator.compile(loss=losses,
                                    optimizer=optimizer,
                                    metrics=['accuracy'])
 
@@ -38,46 +38,45 @@ class ACGAN():
         self.generator = self.build_generator()
         self.generator.compile(loss='binary_crossentropy', optimizer=optimizer)
 
-        # generator input
+        # The generator takes noise and the target label as input
+        # and generates the corresponding digit of that label
         noise = Input(shape=(100,))
         label = Input(shape=(1,))
         img = self.generator([noise, label])
 
-        # for the combined model, we don't train the discriminator
+        # For the combined model we will only train the generator
         self.discriminator.trainable = False
 
-        # valid takes generated image and decide validity
+        # The discriminator takes generated image as input and determines validity
+        # and the label of that image
         valid, target_label = self.discriminator(img)
 
-        # combined model (stacked generator and discriminator) takes
-        # noise as input => generated images => determines validity
+        # The combined model  (stacked generator and discriminator) takes
+        # noise as input => generates images => determines validity
         self.combined = Model([noise, label], [valid, target_label])
         self.combined.compile(loss=losses, optimizer=optimizer)
 
     def build_generator(self):
-        noise_shape = (100,)
 
         model = Sequential()
-        model.add(Dense(128 * 7 * 7, activation="relu", input_shape=noise_shape))
+
+        model.add(Dense(128 * 7 * 7, activation="relu", input_dim=100))
         model.add(Reshape((7, 7, 128)))
         model.add(BatchNormalization(momentum=0.8))
-
         model.add(UpSampling2D())
         model.add(Conv2D(128, kernel_size=3, padding="same"))
         model.add(Activation("relu"))
         model.add(BatchNormalization(momentum=0.8))
-
         model.add(UpSampling2D())
         model.add(Conv2D(64, kernel_size=3, padding="same"))
         model.add(Activation("relu"))
         model.add(BatchNormalization(momentum=0.8))
-
-        model.add(Conv2D(1, kernel_size=3, padding="same"))
+        model.add(Conv2D(self.channels, kernel_size=3, padding='same'))
         model.add(Activation("tanh"))
 
         model.summary()
 
-        noise = Input(shape=noise_shape)  # input to model
+        noise = Input(shape=(100,))
         label = Input(shape=(1,), dtype='int32')
 
         label_embedding = Flatten()(Embedding(self.num_classes, 100)(label))
@@ -148,13 +147,14 @@ class ACGAN():
             # train Discriminator
             # --------------------
 
-            # select a random half batch of images
+            # Select a random half batch of images
             idx = np.random.randint(0, X_train.shape[0], half_batch)
             imgs = X_train[idx]
-            img_labels = y_train[idx]
 
-            # sample noise and generate other half of the train data
             noise = np.random.normal(0, 1, (half_batch, 100))
+            # The labels of the digits that the generator tries to create and
+            # image representation of
+            sampled_labels = np.random.randint(0, 10, half_batch).reshape(-1, 1)
 
             sampled_labels = np.random.randint(0, self.num_classes, half_batch).reshape(-1, 1)
             gen_imgs = self.generator.predict([noise, sampled_labels])  # generated image
@@ -164,9 +164,13 @@ class ACGAN():
             valid = np.ones((half_batch, 1))
             fake = np.zeros((half_batch, 1))
 
-            # train the discriminator (real classified as ones and generated as zeros)
-            d_loss_fake = self.discriminator.train_on_batch(gen_imgs, [fake, fake_labels], class_weight=class_weights)
+            # Image labels. 0-9 if image is valid or 10 if it is generated (fake)
+            img_labels = y_train[idx]
+            fake_labels = self.num_classes * np.ones(half_batch).reshape(-1, 1)
+
+            # Train the discriminator
             d_loss_real = self.discriminator.train_on_batch(imgs, [valid, img_labels], class_weight=class_weights)
+            d_loss_fake = self.discriminator.train_on_batch(gen_imgs, [fake, fake_labels], class_weight=class_weights)
             d_loss = 0.5 * np.add(d_loss_real, d_loss_fake)
 
             # -------------------
