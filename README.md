@@ -14,3 +14,14 @@ Implementation of few of the GAN architectures
 
 - [Info GAN](infogan)
 - [Wasserstein GAN](wgan)
+
+- [Pix2Pix](pix2pix)
+
+![](image/pix2pix.png)
+
+- [Cycle GAN](cycle_gan)
+
+![](image/cycle_gan.png)
+
+- [Adversarial autoencoder](aae)
+![](image/aae.png)
