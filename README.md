@@ -25,3 +25,10 @@ Implementation of few of the GAN architectures
 
 - [Adversarial autoencoder](aae)
 ![](image/aae.png)
+
+- [Boundary seeking GAN](bgan)
+
+    All this does is change the loss function for the generator
+    
+- [Context encoder GAN](context_encoder)
+![](image/context_encoder.png)
