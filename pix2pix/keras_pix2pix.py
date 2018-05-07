@@ -26,7 +26,7 @@ class Pix2Pix():
         self.img_shape = (self.img_rows, self.img_cols, self.channels)
 
         # configure the data loader
-        self.dataset_name = 'facades'
+        self.dataset_name = 'face_sketch'
         self.data_loader = DataLoader(self.dataset_name, (self.img_rows, self.img_cols))
 
         optimizer = Adam(0.0002, 0.5)
@@ -47,10 +47,8 @@ class Pix2Pix():
 
         # Build and compile the generator
         self.generator = self.build_generator()
-        self.generator.compile(loss='binary_crossentropy', optimizer=optimizer)
 
         # Input images and their conditioning images
-        img_A = Input(shape=self.img_shape)
         img_B = Input(shape=self.img_shape)
 
         # By conditioning on B generate a fake version of A
@@ -62,7 +60,7 @@ class Pix2Pix():
         # Discriminators determines validity of translated images / condition pairs
         valid = self.discriminator([fake_A, img_B])
 
-        self.combined = Model([img_A, img_B], [valid, fake_A])
+        self.combined = Model([img_B], [valid, fake_A])
         self.combined.compile(loss=['mse', 'mae'],
                               loss_weights=[1, 100],
                               optimizer=optimizer)
@@ -174,7 +172,7 @@ class Pix2Pix():
             valid = np.ones((batch_size,) + self.disc_patch)
 
             # Train the generators
-            g_loss = self.combined.train_on_batch([imgs_A, imgs_B], [valid, imgs_A])
+            g_loss = self.combined.train_on_batch([imgs_B], [valid, imgs_A])
 
             elapsed_time = datetime.datetime.now() - start_time
             # Plot the progress
