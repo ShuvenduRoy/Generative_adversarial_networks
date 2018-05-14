@@ -1,3 +1,8 @@
+"""
+Adversarial Autoencoder
+Paper: https://arxiv.org/abs/1511.05644
+"""
+
 import keras
 from keras.datasets import mnist
 import keras.models as models
