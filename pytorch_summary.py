@@ -1,7 +1,9 @@
 from collections import OrderedDict
 import torch as th
+
 from torch.autograd import Variable
 import torch.nn as nn
+
 
 def summary(input_size, model):
     def register_hook(module):
