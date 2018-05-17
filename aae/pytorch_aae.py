@@ -3,34 +3,36 @@ Adversarial autoencoder
 https://arxiv.org/abs/1511.05644
 """
 
-
 import os
 import numpy as np
 import torch
 import torch.nn as nn
+import argparse
 import torch.nn.functional as F
 from torch.utils.data import DataLoader
 from torchvision import datasets
 from torch.autograd import Variable
 import torchvision.transforms as transforms
 from torchvision.utils import save_image
+import itertools
 
 # Defining the global variables
 n_epochs = 200
 batch_size = 64
 lr = 0.0002
 b1, b2 = 0.5, 0.999
-latent_dim = 100
+latent_dim = 10
 img_size = 32
 channels = 1
 n_classes = 10
-sample_interval = 500
+sample_interval = 1000
 
 os.makedirs('aae/images', exist_ok=True)
 
 img_shape = (channels, img_size, img_size)
 cuda = True if torch.cuda.is_available() else False
 FloatTensor = torch.cuda.FloatTensor if cuda else torch.FloatTensor
+Tensor = torch.cuda.FloatTensor if cuda else torch.FloatTensor
 LongTensor = torch.cuda.LongTensor if cuda else torch.LongTensor
 
 
@@ -65,89 +67,130 @@ class Encoder(nn.Module):
         return z
 
 
+class Decoder(nn.Module):
+    def __init__(self):
+        super(Decoder, self).__init__()
 
-# loss function
+        self.model = nn.Sequential(
+            nn.Linear(latent_dim, 512),
+            nn.LeakyReLU(0.2, inplace=True),
+            nn.Linear(512, 512),
+            nn.BatchNorm1d(512),
+            nn.LeakyReLU(0.2, inplace=True),
+            nn.Linear(512, int(np.prod(img_shape))),
+            nn.Tanh()
+        )
+
+    def forward(self, z):
+        img_flat = self.model(z)
+        img = img_flat.view(img_flat.shape[0], *img_shape)
+        return img
+
+
+class Discriminator(nn.Module):
+    def __init__(self):
+        super(Discriminator, self).__init__()
+
+        self.model = nn.Sequential(
+            nn.Linear(latent_dim, 512),
+            nn.LeakyReLU(0.2, inplace=True),
+            nn.Linear(512, 256),
+            nn.LeakyReLU(0.2, inplace=True),
+            nn.Linear(256, 1),
+            nn.Sigmoid()
+        )
+
+    def forward(self, z):
+        validity = self.model(z)
+        return validity
+
+
+# Use binary cross-entropy loss
 adversarial_loss = torch.nn.BCELoss()
+pixelwise_loss = torch.nn.L1Loss()
 
-# initialize generator and discriminator
-generator = Generator()
+# Initialize generator and discriminator
+encoder = Encoder()
+decoder = Decoder()
 discriminator = Discriminator()
 
 if cuda:
-    generator.cuda()
+    encoder.cuda()
+    decoder.cuda()
     discriminator.cuda()
     adversarial_loss.cuda()
+    pixelwise_loss.cuda()
 
-# Initialize weights
-generator.apply(weights_init_normal)
-discriminator.apply(weights_init_normal)
-
-
-optimizer_G = torch.optim.Adam(generator.parameters(), lr=lr, betas=(b1, b2))
-optimizer_D = torch.optim.Adam(discriminator.parameters(), lr=lr, betas=(b1, b2))
-
-# configure data loader
-os.makedirs('data/mnist', exist_ok=True)
+# Configure data loader
+os.makedirs('../data/mnist', exist_ok=True)
 dataloader = torch.utils.data.DataLoader(
-    datasets.MNIST('data/mnist', train=True, download=True,
+    datasets.MNIST('../data/mnist', train=True, download=True,
                    transform=transforms.Compose([
                        transforms.Resize(img_size),
                        transforms.ToTensor(),
                        transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))
                    ])),
-    batch_size=batch_size, shuffle=True
-)
+    batch_size=batch_size, shuffle=True)
+
+# Optimizers
+optimizer_G = torch.optim.Adam(itertools.chain(encoder.parameters(), decoder.parameters()),
+                               lr=lr, betas=(b1, b2))
+optimizer_D = torch.optim.Adam(discriminator.parameters(), lr=lr, betas=(b1, b2))
+
+Tensor = torch.cuda.FloatTensor if cuda else torch.FloatTensor
 
 
-# --------
-# Training
-# --------
+def sample_image(n_row, batches_done):
+    """Saves a grid of generated digits"""
+    # Sample noise
+    z = Variable(Tensor(np.random.normal(0, 1, (n_row ** 2, latent_dim))))
+    gen_imgs = decoder(z)
+    save_image(gen_imgs.data, 'aae/images/%d.png' % batches_done, nrow=n_row, normalize=True)
+
+
+# ----------
+#  Training
+# ----------
 
 for epoch in range(n_epochs):
     for i, (imgs, _) in enumerate(dataloader):
-        # for debug: getting a single batch of data
-        # imgs, labels = next(iter(dataloader))
 
-        batch_size = imgs.size(0)
-        # adversarial ground truth
-        valid = Variable(FloatTensor(imgs.size(0), 1).fill_(1.0), requires_grad=False)
-        fake = Variable(FloatTensor(imgs.size(0), 1).fill_(0.0), requires_grad=False)
+        # Adversarial ground truths
+        valid = Variable(Tensor(imgs.shape[0], 1).fill_(1.0), requires_grad=False)
+        fake = Variable(Tensor(imgs.shape[0], 1).fill_(0.0), requires_grad=False)
 
-        # configure input
-        real_imgs = Variable(imgs.type(FloatTensor))
+        # Configure input
+        real_imgs = Variable(imgs.type(Tensor))
 
-        # ----------------
-        # Train generator
-        # ----------------
+        # -----------------
+        #  Train Generator
+        # -----------------
+
         optimizer_G.zero_grad()
 
-        # sample noise as generator input
-        z = Variable(FloatTensor(np.random.normal(0, 1, (batch_size, latent_dim))))
+        encoded_imgs = encoder(real_imgs)
+        decoded_imgs = decoder(encoded_imgs)
 
-        # generate a batch of images
-        gen_imgs = generator(z)
-
-        # calculate loss
-        g_loss = adversarial_loss(discriminator(gen_imgs), valid)
+        # Loss measures generator's ability to fool the discriminator
+        g_loss = 0.001 * adversarial_loss(discriminator(encoded_imgs), valid) + \
+                 0.999 * pixelwise_loss(decoded_imgs, real_imgs)
 
         g_loss.backward()
         optimizer_G.step()
 
-        # -------------------
-        # Train discriminator
-        # -------------------
+        # ---------------------
+        #  Train Discriminator
+        # ---------------------
+
         optimizer_D.zero_grad()
 
-        # Loss for real images
-        validity_real = discriminator(real_imgs)
-        d_real_loss = adversarial_loss(validity_real, valid)
+        # Sample noise as discriminator ground truth
+        z = Variable(Tensor(np.random.normal(0, 1, (imgs.shape[0], latent_dim))))
 
-        # Loss for fake images
-        validity_fake = discriminator(gen_imgs.detach())
-        d_fake_loss = adversarial_loss(validity_fake, fake)
-
-        # Total discriminator loss
-        d_loss = (d_real_loss + d_fake_loss) / 2
+        # Measure discriminator's ability to classify real from generated samples
+        real_loss = adversarial_loss(discriminator(z), valid)
+        fake_loss = adversarial_loss(discriminator(encoded_imgs.detach()), fake)
+        d_loss = 0.5 * (real_loss + fake_loss)
 
         d_loss.backward()
         optimizer_D.step()
@@ -157,4 +200,4 @@ for epoch in range(n_epochs):
 
         batches_done = epoch * len(dataloader) + i
         if batches_done % sample_interval == 0:
-            save_image(gen_imgs.data[:25], 'dcgan/images/%d.png' % batches_done, nrow=5, normalize=True)
+            sample_image(n_row=10, batches_done=batches_done)
