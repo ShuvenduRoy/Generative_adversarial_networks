@@ -19,7 +19,7 @@ from keras.optimizers import Adam
 from keras import losses
 from keras.utils import to_categorical
 import keras.backend as K
-from data_loader import UTKFace_data
+from data_loader_keras import UTKFace_data
 
 import matplotlib.pyplot as plt
 

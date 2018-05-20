@@ -11,7 +11,7 @@ from keras.models import Sequential, Model
 from keras.optimizers import Adam
 import keras
 import matplotlib.pyplot as plt
-from data_loader import UTKFace_data
+from data_loader_keras import UTKFace_data
 import numpy as np
 
 

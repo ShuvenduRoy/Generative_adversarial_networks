@@ -13,7 +13,7 @@ from keras.models import Model
 from keras_contrib.layers import InstanceNormalization
 from keras_vggface import VGGFace
 import keras.backend as K
-from data_loader import UTKFace_data
+from data_loader_keras import UTKFace_data
 
 fnet = VGGFace(include_top=False, input_shape=(128, 128, 3))
 fnet.trainable = False
