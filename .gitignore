@@ -29,6 +29,7 @@ MANIFEST
 images/
 saved_model/
 images_keras/
+images_ls/
 
 # PyInstaller
 #  Usually these files are written by a python script from a template
@@ -112,4 +113,5 @@ venv.bak/
 data/
 models/
 results/
+
 
