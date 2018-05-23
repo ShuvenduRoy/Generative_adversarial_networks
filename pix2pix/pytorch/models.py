@@ -125,5 +125,5 @@ class Discriminator(nn.Module):
 
     def forward(self, img_A, img_B):
         # Concatenate image and condition image by channels to produce input
-        img_input = torch.cat((img_A, img_B), 1)
+        img_input = torch.cat((img_A, img_B), 1)  # first dim(0) for batch dim(1) for channels
         return self.model(img_input)
