@@ -100,7 +100,7 @@ if __name__ == '__main__':
 
     # Loss weights
     lambda_cyc = 10
-    lambda_id = 0.5 * lambda_cyc
+    lambda_id = 0 # 0.5 * lambda_cyc
 
     # Optimizers
     optimizer_G = torch.optim.Adam(itertools.chain(G_AB.parameters(), G_BA.parameters()),
@@ -156,7 +156,7 @@ if __name__ == '__main__':
 
             optimizer_G.zero_grad()
 
-            # Identity loss
+            # Identity loss: This loss is importent only when we want to preserve color of input image in output
             loss_id_A = criterion_identity(G_BA(real_A), real_A)
             loss_id_B = criterion_identity(G_AB(real_B), real_B)
 
