@@ -127,10 +127,10 @@ if __name__ == '__main__':
                     transforms.Normalize((0.5,0.5,0.5), (0.5,0.5,0.5)) ]
 
     # Training data loader
-    dataloader = DataLoader(ImageDataset("E:/Datasets/%s" % opt.dataset_name, transforms_=transforms_, unaligned=True),
+    dataloader = DataLoader(ImageDatasetSeperate("E:/Datasets/%s" % opt.dataset_name, transforms_=transforms_, unaligned=True),
                             batch_size=opt.batch_size, shuffle=True, num_workers=opt.n_cpu)
     # Test data loader
-    val_dataloader = DataLoader(ImageDataset("E:/Datasets/%s" % opt.dataset_name, transforms_=transforms_, unaligned=True, mode='test'),
+    val_dataloader = DataLoader(ImageDatasetSeperate("E:/Datasets/%s" % opt.dataset_name, transforms_=transforms_, unaligned=True, mode='test'),
                             batch_size=5, shuffle=True, num_workers=1)
 
     def sample_images(batches_done):

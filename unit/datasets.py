@@ -38,7 +38,7 @@ class ImageDatasetSeperate(Dataset):
         self.unaligned = unaligned
 
         self.files_A = sorted(glob.glob(os.path.join(root, '%sA'%mode) + '/*.*'))
-        self.files_B = sorted(glob.glob(os.path.join('E:\\Datasets\\UTKFace') + '/*.*'))
+        self.files_B = sorted(glob.glob(os.path.join('E:\\Datasets\\UTKsmall') + '/*.*'))
 
         print("Total images in domain A: %d" %len(self.files_A))
         print("Total images in domain B: %d" %len(self.files_B))
