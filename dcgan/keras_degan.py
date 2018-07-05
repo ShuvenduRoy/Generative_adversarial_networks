@@ -7,9 +7,22 @@ from keras.layers.convolutional import UpSampling2D, Conv2D
 from keras.models import Sequential, Model
 from keras.optimizers import Adam
 
+from keras.callbacks import TensorBoard
+import tensorflow as tf
+
 import matplotlib.pyplot as plt
 import sys
 import numpy as np
+
+
+def write_log(callback, names, logs, batch_no):
+    for name, value in zip(names, logs):
+        summary = tf.Summary()
+        summary_value = summary.value.add()
+        summary_value.simple_value = value
+        summary_value.tag = name
+        callback.writer.add_summary(summary, batch_no)
+        callback.writer.flush()
 
 
 class DCGAN():
@@ -109,7 +122,7 @@ class DCGAN():
 
         return Model(img, validity)
 
-    def train(self, epochs, batch_size=128, save_interval=50):
+    def train(self, callback, epochs, batch_size=128, save_interval=50):
         # load data
         (X_train, _), (_, _) = mnist.load_data()
 
@@ -150,6 +163,10 @@ class DCGAN():
             if epoch % save_interval == 0:
                 self.save_imgs(epoch)
 
+                write_log(callback, ['loss/g_loss'], [g_loss], epoch)
+                write_log(callback, ['loss/d_loss'], [d_loss[0]], epoch)
+                write_log(callback, ['acc/d_accuracy'], [d_loss[1]], epoch)
+
     def save_imgs(self, epoch):
         r, c = 5, 5
         noise = np.random.normal(0, 1, (r * c, 100))
@@ -166,10 +183,15 @@ class DCGAN():
                 axs[i, j].imshow(gen_imgs[cnt, :, :, 0], cmap='gray')
                 axs[i, j].axis('off')
                 cnt += 1
-        fig.savefig("dcgan/images/mnist_%d.png" % epoch)
+        fig.savefig("images/mnist_%d.png" % epoch)
         plt.close()
 
 
 if __name__ == '__main__':
     dcgan = DCGAN()
-    dcgan.train(epochs=4000, batch_size=32, save_interval=50)
+
+    log_path = './logs/run_2'
+    callback = TensorBoard(log_path)
+    callback.set_model(dcgan.combined)
+
+    dcgan.train(callback, epochs=4000, batch_size=32, save_interval=200)
