@@ -1,7 +1,7 @@
 """
 DCGAN
 
-Radford, A., Metz, L., & Chintala, S. (2015). Unsupervised Representation Learning with Deep Convolutional Generative Adversarial Networks: Conv GAN. Astronomy & Astrophysics, 587, A64. https://doi.org/10.1051/0004-6361/201527329
+Radford, A., Metz, L., & Chintala, S. (2015)
 UNSUPERVISED REPRESENTATION LEARNING WITH DEEP CONVOLUTIONAL GENERATIVE ADVERSARIAL NETWORKS
 
 https://arxiv.org/abs/1511.06434
@@ -30,7 +30,7 @@ channels = 1
 n_classes = 10
 sample_interval = 200
 
-os.makedirs('dcgan/images', exist_ok=True)
+os.makedirs('images', exist_ok=True)
 
 img_shape = (channels, img_size, img_size)
 cuda = True if torch.cuda.is_available() else False
@@ -128,9 +128,9 @@ optimizer_G = torch.optim.Adam(generator.parameters(), lr=lr, betas=(b1, b2))
 optimizer_D = torch.optim.Adam(discriminator.parameters(), lr=lr, betas=(b1, b2))
 
 # configure data loader
-os.makedirs('data/mnist', exist_ok=True)
+os.makedirs('../data/mnist', exist_ok=True)
 dataloader = torch.utils.data.DataLoader(
-    datasets.MNIST('data/mnist', train=True, download=True,
+    datasets.MNIST('../data/mnist', train=True, download=True,
                    transform=transforms.Compose([
                        transforms.Resize(img_size),
                        transforms.ToTensor(),
@@ -198,4 +198,4 @@ for epoch in range(n_epochs):
 
         batches_done = epoch * len(dataloader) + i
         if batches_done % sample_interval == 0:
-            save_image(gen_imgs.data[:25], 'dcgan/images/%d.png' % batches_done, nrow=5, normalize=True)
+            save_image(gen_imgs.data[:25], 'images/%d.png' % batches_done, nrow=5, normalize=True)
