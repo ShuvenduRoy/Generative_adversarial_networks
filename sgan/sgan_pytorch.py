@@ -9,6 +9,7 @@ import numpy as np
 import math
 
 import torchvision.transforms as transforms
+from tensorboardX import SummaryWriter
 from torchvision.utils import save_image
 
 from torch.utils.data import DataLoader
@@ -37,6 +38,23 @@ opt = parser.parse_args()
 print(opt)
 
 cuda = True if torch.cuda.is_available() else False
+
+
+# Gan visualization
+def create_summary_writer(model_g, model_d, data_loader, log_dir='./logs'):
+    writer_g = SummaryWriter(os.path.join(log_dir, 'g'))
+    writer_d = SummaryWriter(os.path.join(log_dir, 'd'))
+
+    z = Variable(FloatTensor(np.random.normal(0, 1, (opt.batch_size, opt.latent_dim))))
+    gen_imgs = model_g(z)
+
+    try:
+        writer_g.add_graph(model_g, z)
+        writer_d.add_graph(model_d, gen_imgs)
+    except Exception as e:
+        print("Failed to save model graph: {}".format(e))
+
+    return writer_d
 
 
 def weights_init_normal(m):
@@ -135,9 +153,9 @@ generator.apply(weights_init_normal)
 discriminator.apply(weights_init_normal)
 
 # Configure data loader
-os.makedirs('../../data/mnist', exist_ok=True)
+os.makedirs('../data/mnist', exist_ok=True)
 dataloader = torch.utils.data.DataLoader(
-    datasets.MNIST('../../data/mnist', train=True, download=True,
+    datasets.MNIST('../data/mnist', train=True, download=True,
                    transform=transforms.Compose([
                        transforms.Resize(opt.img_size),
                        transforms.ToTensor(),
@@ -151,6 +169,8 @@ optimizer_D = torch.optim.Adam(discriminator.parameters(), lr=opt.lr, betas=(opt
 
 FloatTensor = torch.cuda.FloatTensor if cuda else torch.FloatTensor
 LongTensor = torch.cuda.LongTensor if cuda else torch.LongTensor
+
+writer = create_summary_writer(generator, discriminator, dataloader)
 
 # ----------
 #  Training
@@ -220,6 +240,10 @@ for epoch in range(opt.n_epochs):
         epoch, opt.n_epochs, i, len(dataloader),
         d_loss.item(), 100 * d_acc,
         g_loss.item()))
+
+        writer.add_scalar("training/d_loss", d_loss.item(), epoch*938+i)
+        writer.add_scalar("training/g_loss", g_loss.item(), epoch*938+i)
+        writer.add_scalar("training/acc", 100 * d_acc, epoch*938+i)
 
         batches_done = epoch * len(dataloader) + i
         if batches_done % opt.sample_interval == 0:
