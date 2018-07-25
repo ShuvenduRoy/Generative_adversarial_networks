@@ -43,6 +43,7 @@ def sample_images(batches_done):
         img_samples = img_sample if img_samples is None else torch.cat((img_samples, img_sample), -2)
     save_image(img_samples, 'images/%s/%s.png' % (opt.dataset_name, batches_done), nrow=5, normalize=True)
 
+
 def reparameterization(mu, logvar):
     std = torch.exp(logvar / 2)
     sampled_z = Variable(Tensor(np.random.normal(0, 1, (mu.size(0), opt.latent_dim))))
@@ -64,7 +65,8 @@ if __name__ == '__main__':
     parser.add_argument('--img_width', type=int, default=128, help='size of image width')
     parser.add_argument('--channels', type=int, default=3, help='number of image channels')
     parser.add_argument('--latent_dim', type=int, default=8, help='number of latent codes')
-    parser.add_argument('--sample_interval', type=int, default=400, help='interval between sampling of images from generators')
+    parser.add_argument('--sample_interval', type=int, default=400,
+                        help='interval between sampling of images from generators')
     parser.add_argument('--checkpoint_interval', type=int, default=-1, help='interval between model checkpoints')
     opt = parser.parse_args()
     print(opt)
@@ -83,8 +85,8 @@ if __name__ == '__main__':
     cuda = True if torch.cuda.is_available() else False
 
     # Calculate outputs of multilevel PatchGAN
-    patch1 = (1, opt.img_height // 2**2, opt.img_width // 2**2)
-    patch2 = (1, opt.img_height // 2**3, opt.img_width // 2**3)
+    patch1 = (1, opt.img_height // 2 ** 2, opt.img_width // 2 ** 2)
+    patch2 = (1, opt.img_height // 2 ** 3, opt.img_width // 2 ** 3)
 
     # Initialize generator, encoder and discriminators
     generator = Generator(opt.latent_dim, img_shape)
@@ -128,15 +130,13 @@ if __name__ == '__main__':
     Tensor = torch.cuda.FloatTensor if cuda else torch.Tensor
 
     # Dataset loader
-    transforms_ = [ transforms.Resize((opt.img_height, opt.img_width), Image.BICUBIC),
-                    transforms.ToTensor(),
-                    transforms.Normalize((0.5,0.5,0.5), (0.5,0.5,0.5)) ]
+    transforms_ = [transforms.Resize((opt.img_height, opt.img_width), Image.BICUBIC),
+                   transforms.ToTensor(),
+                   transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))]
     dataloader = DataLoader(ImageDataset("E:/Datasets/%s" % opt.dataset_name, transforms_=transforms_),
-                                batch_size=opt.batch_size, shuffle=True, num_workers=opt.n_cpu)
+                            batch_size=opt.batch_size, shuffle=True, num_workers=opt.n_cpu)
     val_dataloader = DataLoader(ImageDataset("E:/Datasets/%s" % opt.dataset_name, transforms_=transforms_, mode='val'),
                                 batch_size=8, shuffle=True, num_workers=1)
-
-
 
     # ----------
     #  Training
@@ -156,16 +156,16 @@ if __name__ == '__main__':
             fake1 = Variable(Tensor(np.zeros((real_A.size(0), *patch1))), requires_grad=False)
             fake2 = Variable(Tensor(np.zeros((real_A.size(0), *patch2))), requires_grad=False)
 
-            #-------------------------------
+            # -------------------------------
             #  Train Generator and Encoder
-            #-------------------------------
+            # -------------------------------
 
             optimizer_E.zero_grad()
             optimizer_G.zero_grad()
 
-            #----------
+            # ----------
             # cVAE-GAN
-            #----------
+            # ----------
 
             # Produce output using encoding of B (cVAE-GAN)
             mu, logvar = encoder(real_B)
@@ -178,14 +178,14 @@ if __name__ == '__main__':
             # Pixelwise loss of translated image by VAE
             loss_pixel = pixelwise_loss(fake_B, real_B)
             # Kullback-Leibler divergence of encoded B
-            loss_kl = torch.sum(0.5 * (mu**2 + torch.exp(logvar) - logvar - 1))
+            loss_kl = torch.sum(0.5 * (mu ** 2 + torch.exp(logvar) - logvar - 1))
             # Adversarial loss
-            loss_VAE_GAN =  (adversarial_loss(VAE_validity1, valid1) + \
+            loss_VAE_GAN = (adversarial_loss(VAE_validity1, valid1) + \
                             adversarial_loss(VAE_validity2, valid2)) / 2
 
-            #---------
+            # ---------
             # cLR-GAN
-            #---------
+            # ---------
 
             # Produce output using sampled z (cLR-GAN)
             sampled_z = Variable(Tensor(np.random.normal(0, 1, (real_A.size(0), opt.latent_dim))))
@@ -195,24 +195,24 @@ if __name__ == '__main__':
             LR_validity1, LR_validity2 = D_LR(_fake_B)
 
             # cLR Loss: Adversarial loss
-            loss_LR_GAN =   (adversarial_loss(LR_validity1, valid1) + \
-                            adversarial_loss(LR_validity2, valid2)) / 2
+            loss_LR_GAN = (adversarial_loss(LR_validity1, valid1) + \
+                           adversarial_loss(LR_validity2, valid2)) / 2
 
-            #----------------------------------
+            # ----------------------------------
             # Total Loss (Generator + Encoder)
-            #----------------------------------
+            # ----------------------------------
 
-            loss_GE =   loss_VAE_GAN + \
-                        loss_LR_GAN + \
-                        lambda_pixel * loss_pixel + \
-                        lambda_kl * loss_kl
+            loss_GE = loss_VAE_GAN + \
+                      loss_LR_GAN + \
+                      lambda_pixel * loss_pixel + \
+                      lambda_kl * loss_kl
 
             loss_GE.backward(retain_graph=True)
             optimizer_E.step()
 
-            #---------------------
+            # ---------------------
             # Generator Only Loss
-            #---------------------
+            # ---------------------
 
             # Latent L1 loss
             _mu, _ = encoder(_fake_B)
@@ -221,21 +221,21 @@ if __name__ == '__main__':
             loss_latent.backward()
             optimizer_G.step()
 
-            #----------------------------------
+            # ----------------------------------
             #  Train Discriminator (cVAE-GAN)
-            #----------------------------------
+            # ----------------------------------
 
             optimizer_D_VAE.zero_grad()
 
             # Real loss
             pred_real1, pred_real2 = D_VAE(real_B)
             loss_real = (adversarial_loss(pred_real1, valid1) + \
-                        adversarial_loss(pred_real2, valid2)) / 2
+                         adversarial_loss(pred_real2, valid2)) / 2
 
             # Fake loss (D_LR evaluates samples produced by encoded B)
             pred_gen1, pred_gen2 = D_VAE(fake_B.detach())
             loss_fake = (adversarial_loss(pred_gen1, fake1) + \
-                        adversarial_loss(pred_gen2, fake2)) / 2
+                         adversarial_loss(pred_gen2, fake2)) / 2
 
             # Total loss
             loss_D_VAE = (loss_real + loss_fake) / 2
@@ -243,21 +243,21 @@ if __name__ == '__main__':
             loss_D_VAE.backward()
             optimizer_D_VAE.step()
 
-            #---------------------------------
+            # ---------------------------------
             #  Train Discriminator (cLR-GAN)
-            #---------------------------------
+            # ---------------------------------
 
             optimizer_D_LR.zero_grad()
 
             # Real loss
             pred_real1, pred_real2 = D_LR(real_B)
             loss_real = (adversarial_loss(pred_real1, valid1) + \
-                        adversarial_loss(pred_real2, valid2)) / 2
+                         adversarial_loss(pred_real2, valid2)) / 2
 
             # Fake loss (D_LR evaluates samples produced by sampled z)
             pred_gen1, pred_gen2 = D_LR(_fake_B.detach())
             loss_fake = (adversarial_loss(pred_gen1, fake1) + \
-                        adversarial_loss(pred_gen2, fake2)) / 2
+                         adversarial_loss(pred_gen2, fake2)) / 2
 
             # Total loss
             loss_D_LR = (loss_real + loss_fake) / 2
@@ -276,16 +276,16 @@ if __name__ == '__main__':
             prev_time = time.time()
 
             # Print log
-            sys.stdout.write("\r[Epoch %d/%d] [Batch %d/%d] [D VAE_loss: %f, LR_loss: %f] [G loss: %f, pixel: %f, latent: %f] ETA: %s\n" %
-                                                            (epoch, opt.n_epochs,
-                                                            i, len(dataloader),
-                                                            loss_D_VAE.item(), loss_D_LR.item(),
-                                                            loss_GE.item(), loss_pixel.item(),
-                                                            loss_latent.item(), time_left))
+            sys.stdout.write(
+                "\r[Epoch %d/%d] [Batch %d/%d] [D VAE_loss: %f, LR_loss: %f] [G loss: %f, pixel: %f, latent: %f] ETA: %s\n" %
+                (epoch, opt.n_epochs,
+                 i, len(dataloader),
+                 loss_D_VAE.item(), loss_D_LR.item(),
+                 loss_GE.item(), loss_pixel.item(),
+                 loss_latent.item(), time_left))
 
             if batches_done % opt.sample_interval == 0:
                 sample_images(batches_done)
-
 
         if opt.checkpoint_interval != -1 and epoch % opt.checkpoint_interval == 0:
             # Save model checkpoints

@@ -17,15 +17,33 @@ from torch.utils.data import DataLoader
 from torchvision import datasets
 from torch.autograd import Variable
 
-from srgan.models import *
-from srgan.datasets import *
+from models import *
+from datasets import *
 
 import torch.nn as nn
 import torch.nn.functional as F
 import torch
+from tensorboardX import SummaryWriter
 
 os.makedirs('images', exist_ok=True)
 os.makedirs('saved_models', exist_ok=True)
+
+
+def create_summary_writer(model_g, model_d, data_loader, log_dir='./logs'):
+    writer_g = SummaryWriter(os.path.join(log_dir, 'g'))
+    writer_d = SummaryWriter(os.path.join(log_dir, 'd'))
+
+    imgs = next(iter(data_loader))
+    imgs_lr = Variable(input_lr.copy_(imgs['lr']))
+    imgs_hr = Variable(input_hr.copy_(imgs['hr']))
+
+    try:
+        writer_g.add_graph(model_g, imgs_lr)
+        writer_d.add_graph(model_d, imgs_hr)
+    except Exception as e:
+        print("Failed to save model graph: {}".format(e))
+
+    return writer_d
 
 
 epoch = 0
@@ -41,7 +59,6 @@ hr_width = 256
 channels = 3
 sample_interval = 1000
 checkpoint_interval = -1
-n_cpu = 8
 
 cuda = True if torch.cuda.is_available() else False
 
@@ -97,11 +114,13 @@ hr_transforms = [transforms.Resize((hr_height, hr_height), Image.BICUBIC),
 
 dataloader = DataLoader(
     ImageDataset("E:\\Datasets\\%s" % dataset_name, lr_transforms=lr_transforms, hr_transforms=hr_transforms),
-    batch_size=batch_size, shuffle=True, num_workers=n_cpu)
+    batch_size=batch_size, shuffle=True)
 
 # ----------
 #  Training
 # ----------
+
+create_summary_writer(generator, discriminator, dataloader)
 
 for epoch in range(epoch, n_epochs):
     for i, imgs in enumerate(dataloader):
