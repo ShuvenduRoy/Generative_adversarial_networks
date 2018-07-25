@@ -38,6 +38,7 @@ img_shape = (opt.channels, opt.img_size, opt.img_size)
 
 cuda = True if torch.cuda.is_available() else False
 
+
 def weights_init_normal(m):
     classname = m.__class__.__name__
     if classname.find('Linear') != -1:
@@ -46,12 +47,13 @@ def weights_init_normal(m):
         torch.nn.init.normal_(m.weight.data, 1.0, 0.02)
         torch.nn.init.constant_(m.bias.data, 0.0)
 
+
 class CoupledGenerators(nn.Module):
     def __init__(self):
         super(CoupledGenerators, self).__init__()
 
         self.init_size = opt.img_size // 4
-        self.fc = nn.Sequential(nn.Linear(opt.latent_dim, 128*self.init_size**2))
+        self.fc = nn.Sequential(nn.Linear(opt.latent_dim, 128 * self.init_size ** 2))
 
         self.shared_conv = nn.Sequential(
             nn.BatchNorm2d(128),
@@ -84,6 +86,7 @@ class CoupledGenerators(nn.Module):
         img2 = self.G2(img_emb)
         return img1, img2
 
+
 class CoupledDiscriminators(nn.Module):
     def __init__(self):
         super(CoupledDiscriminators, self).__init__()
@@ -102,9 +105,9 @@ class CoupledDiscriminators(nn.Module):
             *discriminator_block(64, 128),
         )
         # The height and width of downsampled image
-        ds_size = opt.img_size // 2**4
-        self.D1 = nn.Linear(128*ds_size**2, 1)
-        self.D2 = nn.Linear(128*ds_size**2, 1)
+        ds_size = opt.img_size // 2 ** 4
+        self.D1 = nn.Linear(128 * ds_size ** 2, 1)
+        self.D2 = nn.Linear(128 * ds_size ** 2, 1)
 
     def forward(self, img1, img2):
         # Determine validity of first image
@@ -117,6 +120,7 @@ class CoupledDiscriminators(nn.Module):
         validity2 = self.D2(out)
 
         return validity1, validity2
+
 
 # Loss function
 adversarial_loss = torch.nn.MSELoss()
@@ -147,11 +151,11 @@ dataloader1 = torch.utils.data.DataLoader(
 os.makedirs('../../data/mnistm', exist_ok=True)
 dataloader2 = torch.utils.data.DataLoader(
     mnistm.MNISTM('../../data/mnistm', train=True, download=True,
-                   transform=transforms.Compose([
-                       transforms.Resize(opt.img_size),
-                       transforms.ToTensor(),
-                       transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))
-                   ])),
+                  transform=transforms.Compose([
+                      transforms.Resize(opt.img_size),
+                      transforms.ToTensor(),
+                      transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))
+                  ])),
     batch_size=opt.batch_size, shuffle=True)
 
 # Optimizers
@@ -191,8 +195,7 @@ for epoch in range(opt.n_epochs):
         # Determine validity of generated images
         validity1, validity2 = coupled_discriminators(gen_imgs1, gen_imgs2)
 
-        g_loss =    (adversarial_loss(validity1, valid) + \
-                    adversarial_loss(validity2, valid)) / 2
+        g_loss = (adversarial_loss(validity1, valid) + adversarial_loss(validity2, valid)) / 2
 
         g_loss.backward()
         optimizer_G.step()
@@ -207,16 +210,16 @@ for epoch in range(opt.n_epochs):
         validity1_real, validity2_real = coupled_discriminators(imgs1, imgs2)
         validity1_fake, validity2_fake = coupled_discriminators(gen_imgs1.detach(), gen_imgs2.detach())
 
-        d_loss =    (adversarial_loss(validity1_real, valid) + \
-                    adversarial_loss(validity1_fake, fake) + \
-                    adversarial_loss(validity2_real, valid) + \
-                    adversarial_loss(validity2_fake, fake)) / 4
+        d_loss = (adversarial_loss(validity1_real, valid) + \
+                  adversarial_loss(validity1_fake, fake) + \
+                  adversarial_loss(validity2_real, valid) + \
+                  adversarial_loss(validity2_fake, fake)) / 4
 
         d_loss.backward()
         optimizer_D.step()
 
-        print ("[Epoch %d/%d] [Batch %d/%d] [D loss: %f] [G loss: %f]" % (epoch, opt.n_epochs, i, len(dataloader1),
-                                                            d_loss.item(), g_loss.item()))
+        print("[Epoch %d/%d] [Batch %d/%d] [D loss: %f] [G loss: %f]" % (epoch, opt.n_epochs, i, len(dataloader1),
+                                                                         d_loss.item(), g_loss.item()))
 
         batches_done = epoch * len(dataloader1) + i
         if batches_done % opt.sample_interval == 0:
