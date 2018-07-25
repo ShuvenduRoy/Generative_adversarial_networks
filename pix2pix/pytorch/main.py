@@ -32,7 +32,7 @@ def sample_images(batches_done):
     save_image(img_sample, 'images/%s/%s.png' % (opt.dataset_name, batches_done), nrow=5, normalize=True)
 
 
-if __name__=='__main__':
+if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--epoch', type=int, default=0, help='epoch to start training from')
     parser.add_argument('--n_epochs', type=int, default=200, help='number of epochs of training')
@@ -46,7 +46,8 @@ if __name__=='__main__':
     parser.add_argument('--img_height', type=int, default=256, help='size of image height')
     parser.add_argument('--img_width', type=int, default=256, help='size of image width')
     parser.add_argument('--channels', type=int, default=3, help='number of image channels')
-    parser.add_argument('--sample_interval', type=int, default=500, help='interval between sampling of images from generators')
+    parser.add_argument('--sample_interval', type=int, default=500,
+                        help='interval between sampling of images from generators')
     parser.add_argument('--checkpoint_interval', type=int, default=-1, help='interval between model checkpoints')
     opt = parser.parse_args()
     print(opt)
@@ -64,7 +65,7 @@ if __name__=='__main__':
     lambda_pixel = 100
 
     # Calculate output of image discriminator (PatchGAN)
-    patch = (1, opt.img_height//2**4, opt.img_width//2**4)
+    patch = (1, opt.img_height // 2 ** 4, opt.img_width // 2 ** 4)
 
     # Initialize generator and discriminator
     generator = GeneratorUNet()
@@ -79,7 +80,8 @@ if __name__=='__main__':
     if opt.epoch != 0:
         # Load pretrained models
         generator.load_state_dict(torch.load('saved_models/%s/generator_%d.pth' % (opt.dataset_name, opt.epoch)))
-        discriminator.load_state_dict(torch.load('saved_models/%s/discriminator_%d.pth' % (opt.dataset_name, opt.epoch)))
+        discriminator.load_state_dict(
+            torch.load('saved_models/%s/discriminator_%d.pth' % (opt.dataset_name, opt.epoch)))
     else:
         # Initialize weights
         generator.apply(weights_init_normal)
@@ -90,9 +92,9 @@ if __name__=='__main__':
     optimizer_D = torch.optim.Adam(discriminator.parameters(), lr=opt.lr, betas=(opt.b1, opt.b2))
 
     # Configure dataloaders
-    transforms_ = [ transforms.Resize((opt.img_height, opt.img_width), Image.BICUBIC),
-                    transforms.ToTensor(),
-                    transforms.Normalize((0.5,0.5,0.5), (0.5,0.5,0.5)) ]
+    transforms_ = [transforms.Resize((opt.img_height, opt.img_width), Image.BICUBIC),
+                   transforms.ToTensor(),
+                   transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))]
 
     dataloader = DataLoader(ImageDataset("E:/Datasets/%s" % opt.dataset_name, transforms_=transforms_),
                             batch_size=opt.batch_size, shuffle=True, num_workers=opt.n_cpu)
@@ -102,8 +104,6 @@ if __name__=='__main__':
 
     # Tensor type
     Tensor = torch.cuda.FloatTensor if cuda else torch.FloatTensor
-
-
 
     # ----------
     #  Training
@@ -169,20 +169,19 @@ if __name__=='__main__':
             # Determine approximate time left
             batches_done = epoch * len(dataloader) + i
             batches_left = opt.n_epochs * len(dataloader) - batches_done
-            time_left = datetime.timedelta(seconds=batches_left * (time.time() - start_time)/ (batches_done + 1))
+            time_left = datetime.timedelta(seconds=batches_left * (time.time() - start_time) / (batches_done + 1))
 
             # Print log
             sys.stdout.write("\r[Epoch %d/%d] [Batch %d/%d] [D loss: %f] [G loss: %f, pixel: %f, adv: %f] ETA: %s" %
-                                                            (epoch, opt.n_epochs,
-                                                            i, len(dataloader),
-                                                            loss_D.item(), loss_G.item(),
-                                                            loss_pixel.item(), loss_GAN.item(),
-                                                            time_left))
+                             (epoch, opt.n_epochs,
+                              i, len(dataloader),
+                              loss_D.item(), loss_G.item(),
+                              loss_pixel.item(), loss_GAN.item(),
+                              time_left))
 
             # If at sample interval save image
             if batches_done % opt.sample_interval == 0:
                 sample_images(batches_done)
-
 
         if opt.checkpoint_interval != -1 and epoch % opt.checkpoint_interval == 0:
             # Save model checkpoints
