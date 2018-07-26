@@ -30,6 +30,7 @@ def weights_init_normal(m):
         torch.nn.init.normal_(m.weight.data, 1.0, 0.02)
         torch.nn.init.constant_(m.bias.data, 0.0)
 
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--epoch', type=int, default=0, help='epoch to start training from')
@@ -43,7 +44,8 @@ if __name__ == '__main__':
     parser.add_argument('--img_height', type=int, default=64, help='size of image height')
     parser.add_argument('--img_width', type=int, default=64, help='size of image width')
     parser.add_argument('--channels', type=int, default=3, help='number of image channels')
-    parser.add_argument('--sample_interval', type=int, default=100, help='interval between sampling of images from generators')
+    parser.add_argument('--sample_interval', type=int, default=100,
+                        help='interval between sampling of images from generators')
     parser.add_argument('--checkpoint_interval', type=int, default=-1, help='interval between model checkpoints')
     opt = parser.parse_args()
     print(opt)
@@ -60,7 +62,7 @@ if __name__ == '__main__':
     cuda = True if torch.cuda.is_available() else False
 
     # Calculate output of image discriminator (PatchGAN)
-    patch = (1, opt.img_height//2**3, opt.img_width//2**3)
+    patch = (1, opt.img_height // 2 ** 3, opt.img_width // 2 ** 3)
 
     # Initialize generator and discriminator
     G_AB = GeneratorUNet()
@@ -92,7 +94,7 @@ if __name__ == '__main__':
 
     # Optimizers
     optimizer_G = torch.optim.Adam(itertools.chain(G_AB.parameters(), G_BA.parameters()),
-                                    lr=opt.lr, betas=(opt.b1, opt.b2))
+                                   lr=opt.lr, betas=(opt.b1, opt.b2))
     optimizer_D_A = torch.optim.Adam(D_A.parameters(), lr=opt.lr, betas=(opt.b1, opt.b2))
     optimizer_D_B = torch.optim.Adam(D_B.parameters(), lr=opt.lr, betas=(opt.b1, opt.b2))
 
@@ -100,13 +102,14 @@ if __name__ == '__main__':
     Tensor = torch.cuda.FloatTensor if cuda else torch.Tensor
 
     # Dataset loader
-    transforms_ = [ transforms.Resize((opt.img_height, opt.img_width), Image.BICUBIC),
-                    transforms.ToTensor(),
-                    transforms.Normalize((0.5,0.5,0.5), (0.5,0.5,0.5)) ]
+    transforms_ = [transforms.Resize((opt.img_height, opt.img_width), Image.BICUBIC),
+                   transforms.ToTensor(),
+                   transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))]
     dataloader = DataLoader(ImageDataset("E:/Datasets/%s" % opt.dataset_name, transforms_=transforms_, mode='train'),
-                                batch_size=opt.batch_size, shuffle=True, num_workers=opt.n_cpu)
+                            batch_size=opt.batch_size, shuffle=True, num_workers=opt.n_cpu)
     val_dataloader = DataLoader(ImageDataset("E:/Datasets/%s" % opt.dataset_name, transforms_=transforms_, mode='val'),
                                 batch_size=16, shuffle=True, num_workers=opt.n_cpu)
+
 
     def sample_images(batches_done):
         """Saves a generated sample from the validation set"""
@@ -118,6 +121,7 @@ if __name__ == '__main__':
         img_sample = torch.cat((real_A.data, fake_B.data,
                                 real_B.data, fake_A.data), 0)
         save_image(img_sample, 'images/%s/%s.png' % (opt.dataset_name, batches_done), nrow=8, normalize=True)
+
 
     # ----------
     #  Training
@@ -197,7 +201,6 @@ if __name__ == '__main__':
 
             loss_D = 0.5 * (loss_D_A + loss_D_B)
 
-
             # --------------
             #  Log Progress
             # --------------
@@ -209,17 +212,17 @@ if __name__ == '__main__':
             prev_time = time.time()
 
             # Print log
-            sys.stdout.write("\r[Epoch %d/%d] [Batch %d/%d] [D loss: %f] [G loss: %f, adv: %f, pixel: %f, cycle: %f] ETA: %s\n" %
-                                                            (epoch, opt.n_epochs,
-                                                            i, len(dataloader),
-                                                            loss_D.item(), loss_G.item(),
-                                                            loss_GAN.item(), loss_pixelwise.item(),
-                                                            loss_cycle.item(), time_left))
+            sys.stdout.write(
+                "\r[Epoch %d/%d] [Batch %d/%d] [D loss: %f] [G loss: %f, adv: %f, pixel: %f, cycle: %f] ETA: %s\n" %
+                (epoch, opt.n_epochs,
+                 i, len(dataloader),
+                 loss_D.item(), loss_G.item(),
+                 loss_GAN.item(), loss_pixelwise.item(),
+                 loss_cycle.item(), time_left))
 
             # If at sample interval save image
             if batches_done % opt.sample_interval == 0:
                 sample_images(batches_done)
-
 
         if opt.checkpoint_interval != -1 and epoch % opt.checkpoint_interval == 0:
             # Save model checkpoints
