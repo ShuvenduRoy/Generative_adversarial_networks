@@ -104,17 +104,19 @@ train_transforms = [transforms.Resize(int(1.12 * opt.img_height), Image.BICUBIC)
                     transforms.ToTensor(),
                     transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))]
 
-dataloader = DataLoader(CelebADataset("E:\\Datasets\\img_align_celeba", transforms_=train_transforms, mode='train',
-                                      attributes=opt.selected_attrs),
-                        batch_size=opt.batch_size, shuffle=True)
+dataloader = DataLoader(
+    CelebADataset("E:\\Datasets\\%s" % opt.dataset_name, transforms_=train_transforms, mode='train',
+                  attributes=opt.selected_attrs),
+    batch_size=opt.batch_size, shuffle=True)
 
 val_transforms = [transforms.Resize((opt.img_height, opt.img_width), Image.BICUBIC),
                   transforms.ToTensor(),
                   transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))]
 
-val_dataloader = DataLoader(CelebADataset("E:\\Datasets\\img_align_celeba", transforms_=val_transforms, mode='val',
-                                          attributes=opt.selected_attrs),
-                            batch_size=10, shuffle=True)
+val_dataloader = DataLoader(
+    CelebADataset("E:\\Datasets\\%s" % opt.dataset_name, transforms_=val_transforms, mode='val',
+                  attributes=opt.selected_attrs),
+    batch_size=10, shuffle=True)
 
 # Tensor type
 Tensor = torch.cuda.FloatTensor if cuda else torch.FloatTensor
@@ -225,6 +227,7 @@ for epoch in range(opt.epoch, opt.n_epochs):
             # Translate and reconstruct image
             gen_imgs = generator(imgs, sampled_c)
             recov_imgs = generator(gen_imgs, labels)
+
             # Discriminator evaluates translated image
             fake_validity, pred_cls = discriminator(gen_imgs)
             # Adversarial loss
