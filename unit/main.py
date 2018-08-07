@@ -25,7 +25,6 @@ import torch.nn as nn
 import torch.nn.functional as F
 import torch
 
-
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--epoch', type=int, default=0, help='epoch to start training from')
@@ -40,7 +39,8 @@ if __name__ == '__main__':
     parser.add_argument('--img_height', type=int, default=256, help='size of image height')
     parser.add_argument('--img_width', type=int, default=256, help='size of image width')
     parser.add_argument('--channels', type=int, default=3, help='number of image channels')
-    parser.add_argument('--sample_interval', type=int, default=100, help='interval between sampling images from generators')
+    parser.add_argument('--sample_interval', type=int, default=100,
+                        help='interval between sampling images from generators')
     parser.add_argument('--checkpoint_interval', type=int, default=-1, help='interval between saving model checkpoints')
     parser.add_argument('--n_downsample', type=int, default=2, help='number downsampling layers in encoder')
     parser.add_argument('--dim', type=int, default=64, help='number of filters in first encoder layer')
@@ -58,10 +58,10 @@ if __name__ == '__main__':
     criterion_pixel = torch.nn.L1Loss()
 
     # Calculate output of image discriminator (PatchGAN)
-    patch = (1, opt.img_height // 2**4, opt.img_width // 2**4)
+    patch = (1, opt.img_height // 2 ** 4, opt.img_width // 2 ** 4)
 
     # Dimensionality (channel-wise) of image embedding
-    shared_dim = opt.dim * 2**opt.n_downsample
+    shared_dim = opt.dim * 2 ** opt.n_downsample
 
     # Initialize generator and discriminator
     shared_E = ResidualBlock(features=shared_dim)
@@ -101,7 +101,7 @@ if __name__ == '__main__':
         D2.apply(weights_init_normal)
 
     # Loss weights
-    lambda_0 = 10   # GAN
+    lambda_0 = 10  # GAN
     lambda_1 = 0.1  # KL (encoded images)
     lambda_2 = 100  # ID pixel-wise
     lambda_3 = 0.1  # KL (encoded translated images)
@@ -109,29 +109,35 @@ if __name__ == '__main__':
 
     # Optimizers
     optimizer_G = torch.optim.Adam(itertools.chain(E1.parameters(), E2.parameters(), G1.parameters(), G2.parameters()),
-                                    lr=opt.lr, betas=(opt.b1, opt.b2))
+                                   lr=opt.lr, betas=(opt.b1, opt.b2))
     optimizer_D1 = torch.optim.Adam(D1.parameters(), lr=opt.lr, betas=(opt.b1, opt.b2))
     optimizer_D2 = torch.optim.Adam(D2.parameters(), lr=opt.lr, betas=(opt.b1, opt.b2))
 
     # Learning rate update schedulers
-    lr_scheduler_G = torch.optim.lr_scheduler.LambdaLR(optimizer_G, lr_lambda=LambdaLR(opt.n_epochs, opt.epoch, opt.decay_epoch).step)
-    lr_scheduler_D1 = torch.optim.lr_scheduler.LambdaLR(optimizer_D1, lr_lambda=LambdaLR(opt.n_epochs, opt.epoch, opt.decay_epoch).step)
-    lr_scheduler_D2 = torch.optim.lr_scheduler.LambdaLR(optimizer_D2, lr_lambda=LambdaLR(opt.n_epochs, opt.epoch, opt.decay_epoch).step)
+    lr_scheduler_G = torch.optim.lr_scheduler.LambdaLR(optimizer_G, lr_lambda=LambdaLR(opt.n_epochs, opt.epoch,
+                                                                                       opt.decay_epoch).step)
+    lr_scheduler_D1 = torch.optim.lr_scheduler.LambdaLR(optimizer_D1, lr_lambda=LambdaLR(opt.n_epochs, opt.epoch,
+                                                                                         opt.decay_epoch).step)
+    lr_scheduler_D2 = torch.optim.lr_scheduler.LambdaLR(optimizer_D2, lr_lambda=LambdaLR(opt.n_epochs, opt.epoch,
+                                                                                         opt.decay_epoch).step)
 
     Tensor = torch.cuda.FloatTensor if cuda else torch.Tensor
 
     # Image transformations
-    transforms_ = [ transforms.Resize((opt.img_height, opt.img_width), Image.BICUBIC),
-                    transforms.RandomHorizontalFlip(),
-                    transforms.ToTensor(),
-                    transforms.Normalize((0.5,0.5,0.5), (0.5,0.5,0.5)) ]
+    transforms_ = [transforms.Resize((opt.img_height, opt.img_width), Image.BICUBIC),
+                   transforms.RandomHorizontalFlip(),
+                   transforms.ToTensor(),
+                   transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))]
 
     # Training data loader
-    dataloader = DataLoader(ImageDatasetSeperate("E:/Datasets/%s" % opt.dataset_name, transforms_=transforms_, unaligned=True),
-                            batch_size=opt.batch_size, shuffle=True, num_workers=opt.n_cpu)
+    dataloader = DataLoader(
+        ImageDatasetSeperate("E:/Datasets/%s" % opt.dataset_name, transforms_=transforms_, unaligned=True),
+        batch_size=opt.batch_size, shuffle=True, num_workers=opt.n_cpu)
     # Test data loader
-    val_dataloader = DataLoader(ImageDatasetSeperate("E:/Datasets/%s" % opt.dataset_name, transforms_=transforms_, unaligned=True, mode='test'),
-                            batch_size=5, shuffle=True, num_workers=1)
+    val_dataloader = DataLoader(
+        ImageDatasetSeperate("E:/Datasets/%s" % opt.dataset_name, transforms_=transforms_, unaligned=True, mode='test'),
+        batch_size=5, shuffle=True, num_workers=1)
+
 
     def sample_images(batches_done):
         """Saves a generated sample from the test set"""
@@ -146,10 +152,12 @@ if __name__ == '__main__':
                                 X2.data, fake_X1.data), 0)
         save_image(img_sample, 'images/%s/%s.png' % (opt.dataset_name, batches_done), nrow=5, normalize=True)
 
+
     def compute_kl(mu):
         mu_2 = torch.pow(mu, 2)
         loss = torch.mean(mu_2)
         return loss
+
 
     # ----------
     #  Training
@@ -192,28 +200,28 @@ if __name__ == '__main__':
             cycle_X2 = G2(Z1_)
 
             # Losses
-            loss_GAN_1  = lambda_0 * criterion_GAN(D1(fake_X1), valid)
-            loss_GAN_2  = lambda_0* criterion_GAN(D2(fake_X2), valid)
-            loss_KL_1   = lambda_1 * compute_kl(mu1)
-            loss_KL_2   = lambda_1 * compute_kl(mu2)
-            loss_ID_1   = lambda_2 * criterion_pixel(recon_X1, X1)
-            loss_ID_2   = lambda_2 * criterion_pixel(recon_X2, X2)
-            loss_KL_1_  = lambda_3 * compute_kl(mu1_)
-            loss_KL_2_  = lambda_3 * compute_kl(mu2_)
-            loss_cyc_1  = lambda_4 * criterion_pixel(cycle_X1, X1)
-            loss_cyc_2  = lambda_4 * criterion_pixel(cycle_X2, X2)
+            loss_GAN_1 = lambda_0 * criterion_GAN(D1(fake_X1), valid)
+            loss_GAN_2 = lambda_0 * criterion_GAN(D2(fake_X2), valid)
+            loss_KL_1 = lambda_1 * compute_kl(mu1)
+            loss_KL_2 = lambda_1 * compute_kl(mu2)
+            loss_ID_1 = lambda_2 * criterion_pixel(recon_X1, X1)
+            loss_ID_2 = lambda_2 * criterion_pixel(recon_X2, X2)
+            loss_KL_1_ = lambda_3 * compute_kl(mu1_)
+            loss_KL_2_ = lambda_3 * compute_kl(mu2_)
+            loss_cyc_1 = lambda_4 * criterion_pixel(cycle_X1, X1)
+            loss_cyc_2 = lambda_4 * criterion_pixel(cycle_X2, X2)
 
             # Total loss
-            loss_G =    loss_KL_1 + \
-                        loss_KL_2 + \
-                        loss_ID_1 + \
-                        loss_ID_2 + \
-                        loss_GAN_1 + \
-                        loss_GAN_2 + \
-                        loss_KL_1_ + \
-                        loss_KL_2_ + \
-                        loss_cyc_1 + \
-                        loss_cyc_2
+            loss_G = loss_KL_1 + \
+                     loss_KL_2 + \
+                     loss_ID_1 + \
+                     loss_ID_2 + \
+                     loss_GAN_1 + \
+                     loss_GAN_2 + \
+                     loss_KL_1_ + \
+                     loss_KL_2_ + \
+                     loss_cyc_1 + \
+                     loss_cyc_2
 
             loss_G.backward()
             optimizer_G.step()
@@ -224,8 +232,8 @@ if __name__ == '__main__':
 
             optimizer_D1.zero_grad()
 
-            loss_D1 =   criterion_GAN(D1(X1), valid) + \
-                        criterion_GAN(D1(fake_X1.detach()), fake)
+            loss_D1 = criterion_GAN(D1(X1), valid) + \
+                      criterion_GAN(D1(fake_X1.detach()), fake)
 
             loss_D1.backward()
             optimizer_D1.step()
@@ -236,8 +244,8 @@ if __name__ == '__main__':
 
             optimizer_D2.zero_grad()
 
-            loss_D2 =   criterion_GAN(D2(X2), valid) + \
-                        criterion_GAN(D2(fake_X2.detach()), fake)
+            loss_D2 = criterion_GAN(D2(X2), valid) + \
+                      criterion_GAN(D2(fake_X2.detach()), fake)
 
             loss_D2.backward()
             optimizer_D2.step()
@@ -254,16 +262,15 @@ if __name__ == '__main__':
 
             # Print log
             sys.stdout.write("\r[Epoch %d/%d] [Batch %d/%d] [D loss: %f] [G loss: %f] ETA: %s\n" %
-                                                            (epoch, opt.n_epochs,
-                                                            i, len(dataloader),
-                                                            (loss_D1 + loss_D2).item(),
-                                                            loss_G.item(),
-                                                            time_left))
+                             (epoch, opt.n_epochs,
+                              i, len(dataloader),
+                              (loss_D1 + loss_D2).item(),
+                              loss_G.item(),
+                              time_left))
 
             # If at sample interval save image
             if batches_done % opt.sample_interval == 0:
                 sample_images(batches_done)
-
 
         # Update learning rates
         lr_scheduler_G.step()
